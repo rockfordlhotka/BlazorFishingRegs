@@ -1,14 +1,14 @@
-# API Specification Document
+# Fishing Regulations API Specification Document
 
 ## 1. Overview
 
-This document defines the REST API specifications for the Blazor AI PDF Form Population application. The API provides endpoints for document management, AI processing, form template management, and data export functionality.
+This document defines the REST API specifications for the Blazor AI Fishing Regulations application. The API provides endpoints for lake management, fishing regulation retrieval, regulation document processing, and lake search functionality.
 
 ## 2. API Design Principles
 
 ### 2.1 RESTful Design
 - Use HTTP verbs appropriately (GET, POST, PUT, DELETE)
-- Resource-based URLs
+- Resource-based URLs focused on lakes and regulations
 - Stateless communication
 - Consistent response formats
 
@@ -20,14 +20,14 @@ This document defines the REST API specifications for the Blazor AI PDF Form Pop
 ### 2.3 Authentication
 - Bearer token authentication (JWT)
 - API key authentication for service-to-service calls
-- Role-based access control
+- Role-based access control (angler vs administrator)
 
 ## 3. Base Configuration
 
 ### 3.1 Base URL
 ```
-Production: https://blazorai-prod.azurewebsites.net/api/v1
-Staging: https://blazorai-staging.azurewebsites.net/api/v1
+Production: https://fishing-regs-prod.azurewebsites.net/api/v1
+Staging: https://fishing-regs-staging.azurewebsites.net/api/v1
 Development: https://localhost:5001/api/v1
 ```
 
@@ -85,122 +85,24 @@ Content-Type: application/json
 }
 ```
 
-## 5. Document Management Endpoints
+## 5. Lake Management Endpoints
 
-### 5.1 Upload Document
-
-#### Request
-```http
-POST /api/v1/documents/upload
-Content-Type: multipart/form-data
-Authorization: Bearer {token}
-
-file: {pdf_file}
-documentType: "invoice" | "contract" | "receipt" | "custom"
-templateId: {optional_template_id}
-```
-
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "documentId": "550e8400-e29b-41d4-a716-446655440000",
-    "fileName": "invoice_001.pdf",
-    "fileSize": 1024000,
-    "status": "uploaded",
-    "blobUrl": "https://storage.blob.core.windows.net/documents/2025/09/03/abc123.pdf",
-    "uploadedAt": "2025-09-03T10:30:00Z"
-  },
-  "message": "Document uploaded successfully"
-}
-```
-
-#### Error Responses
-```json
-// File too large
-{
-  "success": false,
-  "errors": [
-    {
-      "code": "FILE_TOO_LARGE",
-      "message": "File size exceeds maximum limit of 50MB",
-      "field": "file"
-    }
-  ]
-}
-
-// Invalid file type
-{
-  "success": false,
-  "errors": [
-    {
-      "code": "INVALID_FILE_TYPE",
-      "message": "Only PDF files are supported",
-      "field": "file"
-    }
-  ]
-}
-```
-
-### 5.2 Get Document Details
+### 5.1 Get Lakes
 
 #### Request
 ```http
-GET /api/v1/documents/{documentId}
-Authorization: Bearer {token}
-```
-
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "fileName": "invoice_001.pdf",
-    "originalName": "Invoice_Company_ABC.pdf",
-    "fileSize": 1024000,
-    "contentType": "application/pdf",
-    "status": "processed",
-    "uploadedAt": "2025-09-03T10:30:00Z",
-    "processedAt": "2025-09-03T10:32:15Z",
-    "uploadedBy": "user123",
-    "documentType": "invoice",
-    "extractedData": [
-      {
-        "fieldName": "invoiceNumber",
-        "fieldValue": "INV-2025-001",
-        "confidenceScore": 0.95,
-        "isValidated": true,
-        "correctedValue": null
-      },
-      {
-        "fieldName": "totalAmount",
-        "fieldValue": "$1,234.56",
-        "confidenceScore": 0.89,
-        "isValidated": false,
-        "correctedValue": "$1,234.56"
-      }
-    ]
-  }
-}
-```
-
-### 5.3 List Documents
-
-#### Request
-```http
-GET /api/v1/documents
+GET /api/v1/lakes
 Authorization: Bearer {token}
 
 Query Parameters:
+- search: string (searches lake name, county)
+- state: string (filter by state)
+- latitude: decimal (for region-based search)
+- longitude: decimal (for region-based search)
+- radius: decimal (search radius in miles, requires lat/lng)
+- species: string (filter lakes by fish species)
 - page: integer (default: 1)
-- pageSize: integer (default: 10, max: 100)
-- status: "uploaded" | "processing" | "processed" | "failed"
-- documentType: string
-- fromDate: ISO 8601 date
-- toDate: ISO 8601 date
-- search: string (searches filename and extracted data)
+- pageSize: integer (default: 20, max: 100)
 ```
 
 #### Response
@@ -211,21 +113,90 @@ Query Parameters:
     "items": [
       {
         "id": "550e8400-e29b-41d4-a716-446655440000",
-        "fileName": "invoice_001.pdf",
-        "status": "processed",
-        "documentType": "invoice",
-        "uploadedAt": "2025-09-03T10:30:00Z",
-        "processedAt": "2025-09-03T10:32:15Z"
+        "name": "Lake Superior",
+        "state": "Minnesota",
+        "county": "Cook County",
+        "latitude": 47.7211,
+        "longitude": -89.8794,
+        "description": "Large freshwater lake on the Minnesota-Canada border",
+        "fishSpecies": ["Lake Trout", "Salmon", "Northern Pike", "Walleye"],
+        "hasCurrentRegulations": true,
+        "lastUpdated": "2025-09-03T10:30:00Z"
       }
     ],
     "pagination": {
       "page": 1,
-      "pageSize": 10,
-      "totalCount": 45,
-      "totalPages": 5,
+      "pageSize": 20,
+      "totalCount": 127,
+      "totalPages": 7,
       "hasNext": true,
       "hasPrevious": false
     }
+  }
+}
+```
+
+### 5.2 Get Lake Details
+
+#### Request
+```http
+GET /api/v1/lakes/{lakeId}
+Authorization: Bearer {token}
+```
+
+#### Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Lake Superior",
+    "state": "Minnesota",
+    "county": "Cook County",
+    "latitude": 47.7211,
+    "longitude": -89.8794,
+    "description": "Large freshwater lake on the Minnesota-Canada border",
+    "fishSpecies": ["Lake Trout", "Salmon", "Northern Pike", "Walleye"],
+    "regulations": {
+      "regulationCount": 15,
+      "lastUpdated": "2025-09-03T10:30:00Z",
+      "source": "Minnesota DNR 2025 Regulations"
+    }
+  }
+}
+```
+
+### 5.3 Search Lakes by Species
+
+#### Request
+```http
+GET /api/v1/lakes/species/{species}
+Authorization: Bearer {token}
+
+Query Parameters:
+- state: string (optional filter)
+- page: integer
+- pageSize: integer
+```
+
+#### Response
+```json
+{
+  "success": true,
+  "data": {
+    "species": "Lake Trout",
+    "lakes": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "name": "Lake Superior",
+        "state": "Minnesota",
+        "county": "Cook County",
+        "hasOpenSeason": true,
+        "seasonStatus": "open",
+        "nextSeasonChange": "2025-09-30T23:59:59Z"
+      }
+    ],
+    "totalCount": 23
   }
 }
 ```
@@ -361,82 +332,19 @@ Authorization: Bearer {token}
 }
 ```
 
-## 6. Form Template Endpoints
+## 6. Fishing Regulations Endpoints
 
-### 6.1 Create Form Template
-
-#### Request
-```http
-POST /api/v1/templates
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "name": "Invoice Processing Template",
-  "description": "Standard template for processing invoices",
-  "documentType": "invoice",
-  "fields": [
-    {
-      "name": "invoiceNumber",
-      "label": "Invoice Number",
-      "type": "text",
-      "required": true,
-      "validation": {
-        "pattern": "^INV-\\d{4}-\\d{3}$",
-        "maxLength": 20
-      },
-      "aiMapping": {
-        "keywords": ["invoice number", "invoice #", "inv #"],
-        "patterns": ["INV-\\d{4}-\\d{3}"]
-      }
-    },
-    {
-      "name": "totalAmount",
-      "label": "Total Amount",
-      "type": "currency",
-      "required": true,
-      "validation": {
-        "min": 0,
-        "max": 1000000
-      },
-      "aiMapping": {
-        "keywords": ["total", "amount due", "balance"],
-        "patterns": ["\\$?\\d+\\.\\d{2}"]
-      }
-    }
-  ]
-}
-```
-
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "id": "template123",
-    "name": "Invoice Processing Template",
-    "description": "Standard template for processing invoices",
-    "documentType": "invoice",
-    "isActive": true,
-    "createdAt": "2025-09-03T10:30:00Z",
-    "fieldCount": 8
-  },
-  "message": "Template created successfully"
-}
-```
-
-### 6.2 Get Form Templates
+### 6.1 Get Lake Regulations
 
 #### Request
 ```http
-GET /api/v1/templates
+GET /api/v1/lakes/{lakeId}/regulations
 Authorization: Bearer {token}
 
 Query Parameters:
-- documentType: string
-- isActive: boolean
-- page: integer
-- pageSize: integer
+- species: string (filter by fish species)
+- includeExpired: boolean (default: false)
+- date: ISO 8601 date (check regulations for specific date)
 ```
 
 #### Response
@@ -444,34 +352,51 @@ Query Parameters:
 {
   "success": true,
   "data": {
-    "items": [
+    "lakeId": "550e8400-e29b-41d4-a716-446655440000",
+    "lakeName": "Lake Superior",
+    "effectiveDate": "2025-01-01",
+    "regulationYear": "2025",
+    "source": "Minnesota DNR",
+    "regulations": [
       {
-        "id": "template123",
-        "name": "Invoice Processing Template",
-        "description": "Standard template for processing invoices",
-        "documentType": "invoice",
-        "isActive": true,
-        "fieldCount": 8,
-        "createdAt": "2025-09-03T10:30:00Z",
-        "updatedAt": "2025-09-03T10:30:00Z"
+        "id": "reg-123",
+        "species": "Lake Trout",
+        "seasonOpen": "2025-01-01",
+        "seasonClose": "2025-09-30",
+        "isCurrentlyOpen": true,
+        "dailyBagLimit": 3,
+        "possessionLimit": 6,
+        "minimumSize": "15 inches",
+        "maximumSize": null,
+        "protectedSlot": "28-36 inches (1 fish allowed)",
+        "specialRegulations": [
+          "Barbless hooks required",
+          "No live bait below 63 feet"
+        ],
+        "confidenceScore": 0.95,
+        "lastUpdated": "2025-09-03T10:30:00Z"
       }
     ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 10,
-      "totalCount": 5,
-      "totalPages": 1
+    "licenseRequirements": {
+      "required": true,
+      "type": "Minnesota Fishing License",
+      "additionalStamps": ["Lake Superior Stamp"],
+      "notes": "Required for all anglers 16 and older"
     }
   }
 }
 ```
 
-### 6.3 Get Template Details
+### 6.2 Get Current Fishing Status
 
 #### Request
 ```http
-GET /api/v1/templates/{templateId}
+GET /api/v1/lakes/{lakeId}/status
 Authorization: Bearer {token}
+
+Query Parameters:
+- species: string (optional, get status for specific species)
+- date: ISO 8601 date (default: today)
 ```
 
 #### Response
@@ -479,139 +404,182 @@ Authorization: Bearer {token}
 {
   "success": true,
   "data": {
-    "id": "template123",
-    "name": "Invoice Processing Template",
-    "description": "Standard template for processing invoices",
-    "documentType": "invoice",
-    "isActive": true,
-    "fields": [
+    "lakeId": "550e8400-e29b-41d4-a716-446655440000",
+    "lakeName": "Lake Superior",
+    "checkDate": "2025-09-03",
+    "overallStatus": "open",
+    "speciesStatus": [
       {
-        "name": "invoiceNumber",
-        "label": "Invoice Number",
-        "type": "text",
-        "required": true,
-        "validation": {
-          "pattern": "^INV-\\d{4}-\\d{3}$",
-          "maxLength": 20
-        },
-        "aiMapping": {
-          "keywords": ["invoice number", "invoice #", "inv #"],
-          "patterns": ["INV-\\d{4}-\\d{3}"]
-        }
-      }
-    ],
-    "createdAt": "2025-09-03T10:30:00Z",
-    "updatedAt": "2025-09-03T10:30:00Z"
-  }
-}
-```
-
-## 7. AI Processing Endpoints
-
-### 7.1 Analyze Document
-
-#### Request
-```http
-POST /api/v1/ai/analyze
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "documentUrl": "https://storage.blob.core.windows.net/documents/abc123.pdf",
-  "analysisType": "comprehensive",
-  "options": {
-    "extractTables": true,
-    "detectSignatures": true,
-    "enhanceWithNLP": true
-  }
-}
-```
-
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "analysisId": "analysis-123",
-    "documentType": "invoice",
-    "confidence": 0.92,
-    "extractedFields": {
-      "invoiceNumber": {
-        "value": "INV-2025-001",
-        "confidence": 0.95,
-        "boundingBox": {
-          "x": 100,
-          "y": 50,
-          "width": 120,
-          "height": 20
-        }
-      }
-    },
-    "tables": [
-      {
-        "rows": 5,
-        "columns": 4,
-        "data": [
-          ["Item", "Quantity", "Price", "Total"],
-          ["Widget A", "2", "$10.00", "$20.00"]
-        ]
-      }
-    ],
-    "qualityScore": 85,
-    "processingTime": 2.5
-  }
-}
-```
-
-### 7.2 Enhance Extraction
-
-#### Request
-```http
-POST /api/v1/ai/enhance
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "documentId": "550e8400-e29b-41d4-a716-446655440000",
-  "extractedData": {
-    "invoiceNumber": "INV-2025-001",
-    "totalAmount": "1234.56"
-  },
-  "context": {
-    "documentType": "invoice",
-    "vendor": "ABC Company"
-  }
-}
-```
-
-#### Response
-```json
-{
-  "success": true,
-  "data": {
-    "enhancedFields": {
-      "invoiceNumber": {
-        "original": "INV-2025-001",
-        "enhanced": "INV-2025-001",
-        "confidence": 0.98,
-        "changes": []
+        "species": "Lake Trout",
+        "status": "open",
+        "daysRemaining": 27,
+        "seasonCloses": "2025-09-30",
+        "bagLimit": 3,
+        "currentRestrictions": ["Barbless hooks required"]
       },
-      "totalAmount": {
-        "original": "1234.56",
-        "enhanced": "$1,234.56",
-        "confidence": 0.95,
-        "changes": ["formatted_currency"]
-      }
-    },
-    "suggestions": [
       {
-        "field": "dueDate",
-        "suggestion": "2025-10-03",
-        "confidence": 0.75,
-        "reason": "Inferred from 30-day payment terms"
+        "species": "Northern Pike",
+        "status": "closed",
+        "reason": "Spawning season",
+        "seasonOpens": "2025-05-01",
+        "daysUntilOpen": 238
+      }
+    ]
+  }
+}
+```
+
+### 6.3 Search Regulations
+
+#### Request
+```http
+GET /api/v1/regulations/search
+Authorization: Bearer {token}
+
+Query Parameters:
+- species: string
+- state: string
+- minBagLimit: integer
+- maxBagLimit: integer
+- openSeasons: boolean (only return currently open seasons)
+- hasSpecialRegs: boolean (filter by special regulations)
+```
+
+#### Response
+```json
+{
+  "success": true,
+  "data": {
+    "searchCriteria": {
+      "species": "Walleye",
+      "state": "Minnesota",
+      "openSeasons": true
+    },
+    "results": [
+      {
+        "lakeId": "lake-456",
+        "lakeName": "Mille Lacs Lake",
+        "species": "Walleye",
+        "dailyBagLimit": 4,
+        "minimumSize": "15 inches",
+        "seasonStatus": "open",
+        "specialRegulations": ["Slot limit in effect"]
       }
     ],
-    "qualityImprovement": 12
+    "totalCount": 45
+  }
+}
+```
+
+## 7. Regulation Document Management (Admin)
+
+### 7.1 Upload Regulation Document
+
+#### Request
+```http
+POST /api/v1/admin/regulations/upload
+Content-Type: multipart/form-data
+Authorization: Bearer {token}
+
+file: {fishing_regulations_pdf}
+regulationYear: "2025"
+issuingAuthority: "Minnesota DNR"
+effectiveDate: "2025-01-01"
+```
+
+#### Response
+```json
+{
+  "success": true,
+  "data": {
+    "documentId": "550e8400-e29b-41d4-a716-446655440000",
+    "fileName": "mn-fishing-regs-2025.pdf",
+    "fileSize": 5242880,
+    "status": "uploaded",
+    "regulationYear": "2025",
+    "issuingAuthority": "Minnesota DNR",
+    "uploadedAt": "2025-09-03T10:30:00Z",
+    "processingEstimate": "5-10 minutes"
+  },
+  "message": "Regulation document uploaded successfully"
+}
+```
+
+### 7.2 Process Regulation Document
+
+#### Request
+```http
+POST /api/v1/admin/regulations/{documentId}/process
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "options": {
+    "extractLakeInfo": true,
+    "extractRegulations": true,
+    "validateWithAI": true,
+    "updateExistingLakes": true
+  }
+}
+```
+
+#### Response
+```json
+{
+  "success": true,
+  "data": {
+    "processingId": "proc-550e8400-e29b-41d4-a716-446655440000",
+    "status": "processing",
+    "estimatedCompletionTime": "2025-09-03T10:40:00Z",
+    "steps": [
+      {
+        "name": "Document Analysis",
+        "status": "in_progress",
+        "progress": 25
+      },
+      {
+        "name": "Lake Identification",
+        "status": "pending"
+      },
+      {
+        "name": "Regulation Extraction",
+        "status": "pending"
+      },
+      {
+        "name": "Data Validation",
+        "status": "pending"
+      }
+    ]
+  }
+}
+```
+
+### 7.3 Get Processing Status
+
+#### Request
+```http
+GET /api/v1/admin/regulations/{documentId}/status
+Authorization: Bearer {token}
+```
+
+#### Response
+```json
+{
+  "success": true,
+  "data": {
+    "documentId": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "completed",
+    "progress": 100,
+    "results": {
+      "lakesProcessed": 127,
+      "lakesCreated": 5,
+      "lakesUpdated": 122,
+      "regulationsExtracted": 1834,
+      "regulationsValidated": 1798,
+      "regulationsRequiringReview": 36
+    },
+    "completedAt": "2025-09-03T10:38:45Z",
+    "processingTime": "8 minutes 45 seconds"
   }
 }
 ```

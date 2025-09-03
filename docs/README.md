@@ -1,14 +1,14 @@
-# Project Documentation Index
+# Fishing Regulations Project Documentation Index
 
-Welcome to the Blazor AI PDF Form Population project documentation. This comprehensive documentation suite provides all the information needed to understand, implement, deploy, and maintain the application.
+Welcome to the Blazor AI Fishing Regulations project documentation. This comprehensive documentation suite provides all the information needed to understand, implement, deploy, and maintain the fishing regulations application.
 
 ## 📋 Document Overview
 
 | Document | Description | Audience | Last Updated |
 |----------|-------------|----------|--------------|
-| [Main Specification](./BlazorAI-PDF-Form-Spec.md) | Complete project specification and requirements | All stakeholders | Sept 3, 2025 |
-| [Technical Architecture](./Technical-Architecture.md) | Detailed technical implementation guide | Developers, Architects | Sept 3, 2025 |
-| [API Specification](./API-Specification.md) | REST API documentation and examples | Developers, Integrators | Sept 3, 2025 |
+| [Main Specification](./BlazorAI-PDF-Form-Spec.md) | Complete project specification for fishing regulations app | All stakeholders | Sept 3, 2025 |
+| [Technical Architecture](./Technical-Architecture.md) | Detailed technical implementation guide for fishing domain | Developers, Architects | Sept 3, 2025 |
+| [API Specification](./API-Specification.md) | REST API documentation for lakes and regulations | Developers, Integrators | Sept 3, 2025 |
 | [Deployment Guide](./Deployment-Guide.md) | Azure deployment and configuration instructions | DevOps, System Administrators | Sept 3, 2025 |
 
 ## 🎯 Quick Start Guide
@@ -35,23 +35,23 @@ Welcome to the Blazor AI PDF Form Population project documentation. This compreh
 
 ## 🏗️ Project Architecture Summary
 
-The Blazor AI PDF Form Population application is built using:
+The Blazor AI Fishing Regulations application is built using:
 
-- **Frontend**: Blazor Server with Microsoft Fluent UI components
-- **Backend**: .NET 8 with Entity Framework Core
-- **AI Services**: Azure AI Document Intelligence + Azure OpenAI
-- **Storage**: Azure Blob Storage + SQL Server
-- **Security**: Azure AD B2C + Key Vault
-- **Monitoring**: Application Insights + Log Analytics
+- **Frontend**: Blazor Server with interactive lake selection and regulation display
+- **Backend**: .NET 8 with Entity Framework Core for lake and regulation data
+- **AI Services**: Azure AI Document Intelligence + Azure OpenAI for regulation extraction
+- **Storage**: Azure Blob Storage for regulation PDFs + SQL Server for structured data
+- **Security**: Azure AD B2C + Key Vault for secure access
+- **Monitoring**: Application Insights + Log Analytics for performance tracking
 
 ## 🔄 Implementation Phases
 
 | Phase | Duration | Key Deliverables |
 |-------|----------|------------------|
-| **Phase 1: Foundation** | Weeks 1-2 | Basic app structure, authentication, Azure setup |
-| **Phase 2: Core Features** | Weeks 3-5 | PDF upload, AI extraction, form generation |
-| **Phase 3: Enhancement** | Weeks 6-8 | Advanced AI, validation, templates, export |
-| **Phase 4: Production** | Weeks 9-10 | Optimization, testing, deployment |
+| **Phase 1: Foundation** | Weeks 1-2 | Basic app structure, authentication, Azure setup, lake data model |
+| **Phase 2: Core Features** | Weeks 3-5 | PDF upload, AI extraction, lake selection, regulation display |
+| **Phase 3: Enhancement** | Weeks 6-8 | Advanced search, mobile optimization, admin features |
+| **Phase 4: Production** | Weeks 9-10 | Performance optimization, testing, deployment |
 
 ## 🔒 Security & Compliance
 
@@ -65,11 +65,11 @@ The application implements enterprise-grade security:
 
 ## 📊 Key Performance Targets
 
-- **Processing Speed**: < 30 seconds for standard documents
-- **Extraction Accuracy**: > 95% for common document types
-- **System Availability**: 99.9% uptime target
-- **Scalability**: Support for 100+ concurrent users
-- **Response Time**: < 3 seconds for all page loads
+- **Processing Speed**: < 30 seconds for fishing regulation PDF processing
+- **Extraction Accuracy**: > 95% for lake names and regulation data
+- **System Availability**: 99.9% uptime target for angler access
+- **Search Performance**: < 1 second for lake searches and regulation lookups
+- **Mobile Performance**: < 3 seconds load time on mobile devices
 
 ## 🔧 Technology Stack Details
 
@@ -86,17 +86,17 @@ The application implements enterprise-grade security:
 - **FluentValidation**: Input validation and business rules
 
 ### AI & Machine Learning
-- **Azure AI Document Intelligence**: Advanced OCR and form recognition
-- **Azure OpenAI Service**: GPT-4 for enhanced data processing
-- **Custom Models**: Trainable models for specific document types
-- **Confidence Scoring**: Quality assessment for extractions
+- **Azure AI Document Intelligence**: Advanced OCR and fishing regulation recognition
+- **Azure OpenAI Service**: GPT-4 for enhanced lake identification and regulation interpretation
+- **Custom Models**: Trainable models for specific regulation document formats
+- **Confidence Scoring**: Quality assessment for extracted fishing regulation data
 
 ### Cloud Infrastructure
-- **Azure App Service**: Scalable web hosting
-- **Azure SQL Database**: Managed relational database
-- **Azure Blob Storage**: Document and file storage
+- **Azure App Service**: Scalable web hosting for fishing application
+- **Azure SQL Database**: Managed database for lakes and regulations
+- **Azure Blob Storage**: Regulation PDF document storage
 - **Azure Key Vault**: Secrets and configuration management
-- **Azure Application Insights**: Performance monitoring
+- **Azure Application Insights**: Performance monitoring and usage analytics
 
 ## 📈 Success Metrics
 

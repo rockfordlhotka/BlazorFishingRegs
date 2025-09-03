@@ -1,8 +1,8 @@
-# Technical Architecture Document
+# Fishing Regulations Technical Architecture Document
 
 ## 1. System Architecture Overview
 
-This document provides detailed technical architecture for the Blazor AI PDF Form Population application, complementing the main specification document.
+This document provides detailed technical architecture for the Blazor AI Fishing Regulations application, focusing on the extraction and presentation of lake-specific fishing regulations from PDF documents.
 
 ## 2. Application Layers
 
@@ -11,102 +11,123 @@ This document provides detailed technical architecture for the Blazor AI PDF For
 #### 2.1.1 Page Components
 ```
 /Pages
-├── Index.razor              # Main dashboard
-├── Upload.razor             # Document upload page
-├── Processing.razor         # Processing status page
-├── FormEdit.razor          # Form editing and validation
-├── Results.razor           # Results display and export
+├── Index.razor              # Main dashboard with lake search
+├── LakeSelection.razor      # Interactive lake selection interface
+├── RegulationView.razor     # Lake-specific regulation display  
+├── Upload.razor             # Regulation PDF upload (admin)
+├── Processing.razor         # PDF processing status
 └── Admin/
-    ├── Templates.razor     # Form template management
-    └── Settings.razor      # Application settings
+    ├── RegulationManagement.razor  # Regulation oversight
+    └── LakeManagement.razor        # Lake database management
 ```
 
 #### 2.1.2 Shared Components
 ```
 /Shared
-├── MainLayout.razor        # Application layout
-├── NavMenu.razor          # Navigation component
-├── FileUpload.razor       # Reusable file upload
-├── FormRenderer.razor     # Dynamic form renderer
-├── ProgressIndicator.razor # Processing progress
-├── DataGrid.razor         # Data display grid
-└── ConfidenceIndicator.razor # AI confidence display
+├── MainLayout.razor         # Application layout
+├── LakeMap.razor           # Interactive lake map component
+├── LakeSelector.razor      # Lake dropdown/search component
+├── RegulationCard.razor    # Individual regulation display
+├── SeasonCalendar.razor    # Fishing season visualization
+├── SpeciesFilter.razor     # Fish species filtering
+└── RegulationUpload.razor  # PDF upload component
 ```
 
 #### 2.1.3 Component Services
 ```csharp
 // Blazor component services registration
-builder.Services.AddScoped<IDocumentUploadService, DocumentUploadService>();
-builder.Services.AddScoped<IFormRenderingService, FormRenderingService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<IProgressTrackingService, ProgressTrackingService>();
+builder.Services.AddScoped<ILakeSelectionService, LakeSelectionService>();
+builder.Services.AddScoped<IRegulationDisplayService, RegulationDisplayService>();
+builder.Services.AddScoped<IMapService, MapService>();
+builder.Services.AddScoped<IRegulationUploadService, RegulationUploadService>();
 ```
 
 ### 2.2 Business Logic Layer
 
 #### 2.2.1 Core Services
 ```csharp
-// IDocumentProcessingService.cs
-public interface IDocumentProcessingService
+// IRegulationProcessingService.cs
+public interface IRegulationProcessingService
 {
-    Task<ProcessingResult> ProcessDocumentAsync(Guid documentId, CancellationToken cancellationToken);
-    Task<ExtractionResult> ExtractDataAsync(Stream documentStream, string documentType);
-    Task<ValidationResult> ValidateExtractedDataAsync(ExtractionResult extraction);
+    Task<RegulationProcessingResult> ProcessRegulationDocumentAsync(Guid documentId, CancellationToken cancellationToken);
+    Task<List<LakeRegulation>> ExtractLakeRegulationsAsync(Stream documentStream);
+    Task<ValidationResult> ValidateExtractedRegulationsAsync(List<LakeRegulation> regulations);
 }
 
-// IFormConfigurationService.cs
-public interface IFormConfigurationService
+// ILakeService.cs
+public interface ILakeService
 {
-    Task<FormTemplate> GetTemplateAsync(string documentType);
-    Task<FormTemplate> CreateTemplateAsync(FormTemplateRequest request);
-    Task<FieldMapping[]> GetFieldMappingsAsync(string templateId);
+    Task<Lake> GetLakeByIdAsync(Guid lakeId);
+    Task<List<Lake>> SearchLakesAsync(string searchTerm, string state = null);
+    Task<List<Lake>> GetLakesByRegionAsync(decimal latitude, decimal longitude, double radiusMiles);
+    Task<List<FishingRegulation>> GetRegulationsForLakeAsync(Guid lakeId, string species = null);
 }
 
-// IAIOrchestrationService.cs
-public interface IAIOrchestrationService
+// IRegulationSearchService.cs
+public interface IRegulationSearchService
 {
-    Task<DocumentAnalysisResult> AnalyzeDocumentAsync(string blobUrl);
-    Task<EnhancedExtractionResult> EnhanceExtractionAsync(DocumentAnalysisResult result);
-    Task<FieldSuggestion[]> GetFieldSuggestionsAsync(string context);
+    Task<List<FishingRegulation>> SearchRegulationsAsync(RegulationSearchCriteria criteria);
+    Task<List<Lake>> FindLakesBySpeciesAsync(string species);
+    Task<SeasonInfo> GetFishingSeasonAsync(Guid lakeId, string species, DateTime date);
 }
 ```
 
 #### 2.2.2 Service Implementations
 ```csharp
-// DocumentProcessingService.cs
-public class DocumentProcessingService : IDocumentProcessingService
+// RegulationProcessingService.cs
+public class RegulationProcessingService : IRegulationProcessingService
 {
-    private readonly IAIOrchestrationService _aiService;
-    private readonly IFormConfigurationService _formService;
-    private readonly IDocumentRepository _documentRepo;
-    private readonly ILogger<DocumentProcessingService> _logger;
+    private readonly IAIRegulationExtractionService _aiService;
+    private readonly ILakeService _lakeService;
+    private readonly IRegulationRepository _regulationRepo;
+    private readonly ILogger<RegulationProcessingService> _logger;
 
-    public async Task<ProcessingResult> ProcessDocumentAsync(Guid documentId, CancellationToken cancellationToken)
+    public async Task<RegulationProcessingResult> ProcessRegulationDocumentAsync(Guid documentId, CancellationToken cancellationToken)
     {
-        var document = await _documentRepo.GetByIdAsync(documentId);
+        var document = await _regulationRepo.GetDocumentByIdAsync(documentId);
         
-        // Step 1: AI Analysis
-        var analysisResult = await _aiService.AnalyzeDocumentAsync(document.BlobUrl);
+        // Step 1: AI Analysis of Fishing Regulations
+        var extractedRegulations = await _aiService.ExtractLakeRegulationsAsync(document.BlobUrl);
         
-        // Step 2: Enhanced Processing
-        var enhancedResult = await _aiService.EnhanceExtractionAsync(analysisResult);
+        // Step 2: Lake Identification and Matching
+        var matchedLakes = await IdentifyAndMatchLakesAsync(extractedRegulations);
         
-        // Step 3: Form Template Selection
-        var template = await _formService.GetTemplateAsync(enhancedResult.DocumentType);
+        // Step 3: Regulation Structuring and Validation
+        var structuredRegulations = await StructureRegulationDataAsync(extractedRegulations, matchedLakes);
         
-        // Step 4: Field Mapping
-        var mappedData = MapFieldsToTemplate(enhancedResult, template);
+        // Step 4: Database Update
+        await UpdateLakeRegulationsAsync(structuredRegulations);
         
-        // Step 5: Validation
-        var validationResult = await ValidateExtractedDataAsync(mappedData);
-        
-        return new ProcessingResult
+        return new RegulationProcessingResult
         {
             DocumentId = documentId,
-            ExtractedData = mappedData,
-            ValidationResult = validationResult,
+            ProcessedLakeCount = matchedLakes.Count,
+            ExtractedRegulationCount = structuredRegulations.Count,
             ProcessedAt = DateTime.UtcNow
         };
+    }
+
+    private async Task<List<Lake>> IdentifyAndMatchLakesAsync(List<ExtractedRegulation> regulations)
+    {
+        var identifiedLakes = new List<Lake>();
+        
+        foreach (var regulation in regulations)
+        {
+            // Use AI to standardize lake names and identify coordinates
+            var lakeInfo = await _aiService.StandardizeLakeInformationAsync(regulation.LakeName, regulation.Location);
+            
+            // Match with existing lakes or create new entries
+            var existingLake = await _lakeService.FindLakeByNameAndLocationAsync(lakeInfo.StandardizedName, lakeInfo.State);
+            
+            if (existingLake == null)
+            {
+                existingLake = await _lakeService.CreateLakeAsync(lakeInfo);
+            }
+            
+            identifiedLakes.Add(existingLake);
+        }
+        
+        return identifiedLakes;
     }
 }
 ```
@@ -115,42 +136,51 @@ public class DocumentProcessingService : IDocumentProcessingService
 
 #### 2.3.1 Entity Framework Configuration
 ```csharp
-// ApplicationDbContext.cs
-public class ApplicationDbContext : DbContext
+// FishingRegulationsDbContext.cs
+public class FishingRegulationsDbContext : DbContext
 {
-    public DbSet<Document> Documents { get; set; }
-    public DbSet<FormTemplate> FormTemplates { get; set; }
-    public DbSet<ExtractedData> ExtractedData { get; set; }
+    public DbSet<Lake> Lakes { get; set; }
+    public DbSet<FishingRegulation> FishingRegulations { get; set; }
+    public DbSet<RegulationDocument> RegulationDocuments { get; set; }
     public DbSet<ProcessingAudit> ProcessingAudits { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Document configuration
-        modelBuilder.Entity<Document>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
-            entity.Property(e => e.BlobUrl).IsRequired();
-            entity.HasIndex(e => e.Status);
-            entity.HasIndex(e => e.UploadedAt);
-        });
-
-        // Form Template configuration
-        modelBuilder.Entity<FormTemplate>(entity =>
+        // Lake configuration
+        modelBuilder.Entity<Lake>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.TemplateJson).IsRequired();
-            entity.HasMany(e => e.Fields).WithOne().HasForeignKey("TemplateId");
+            entity.Property(e => e.State).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.County).HasMaxLength(50);
+            entity.Property(e => e.Latitude).HasPrecision(10, 7);
+            entity.Property(e => e.Longitude).HasPrecision(10, 7);
+            entity.HasIndex(e => new { e.State, e.Name });
+            entity.HasIndex(e => new { e.Latitude, e.Longitude });
         });
 
-        // Extracted Data configuration
-        modelBuilder.Entity<ExtractedData>(entity =>
+        // Fishing Regulation configuration
+        modelBuilder.Entity<FishingRegulation>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.FieldName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Species).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.MinimumSize).HasMaxLength(20);
+            entity.Property(e => e.MaximumSize).HasMaxLength(20);
+            entity.Property(e => e.ProtectedSlot).HasMaxLength(50);
             entity.Property(e => e.ConfidenceScore).HasPrecision(5, 4);
-            entity.HasOne<Document>().WithMany(d => d.ExtractedData).HasForeignKey(e => e.DocumentId);
+            entity.HasOne<Lake>().WithMany(l => l.Regulations).HasForeignKey(e => e.LakeId);
+            entity.HasIndex(e => new { e.LakeId, e.Species });
+        });
+
+        // Regulation Document configuration
+        modelBuilder.Entity<RegulationDocument>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.RegulationYear).HasMaxLength(4);
+            entity.Property(e => e.IssuingAuthority).HasMaxLength(100);
+            entity.HasIndex(e => e.RegulationYear);
+            entity.HasIndex(e => e.UploadedAt);
         });
     }
 }
@@ -158,55 +188,64 @@ public class ApplicationDbContext : DbContext
 
 #### 2.3.2 Repository Pattern Implementation
 ```csharp
-// IDocumentRepository.cs
-public interface IDocumentRepository
+// ILakeRepository.cs
+public interface ILakeRepository
 {
-    Task<Document> GetByIdAsync(Guid id);
-    Task<Document> CreateAsync(Document document);
-    Task<Document> UpdateAsync(Document document);
-    Task<PagedResult<Document>> GetPagedAsync(DocumentFilter filter, int page, int pageSize);
-    Task<IEnumerable<Document>> GetByStatusAsync(DocumentStatus status);
+    Task<Lake> GetByIdAsync(Guid id);
+    Task<Lake> GetByNameAndStateAsync(string name, string state);
+    Task<List<Lake>> SearchAsync(string searchTerm, string state = null);
+    Task<List<Lake>> GetByRegionAsync(decimal latitude, decimal longitude, double radiusMiles);
+    Task<Lake> CreateAsync(Lake lake);
+    Task<Lake> UpdateAsync(Lake lake);
+    Task<List<Lake>> GetLakesBySpeciesAsync(string species);
 }
 
-// DocumentRepository.cs
-public class DocumentRepository : IDocumentRepository
+// LakeRepository.cs
+public class LakeRepository : ILakeRepository
 {
-    private readonly ApplicationDbContext _context;
+    private readonly FishingRegulationsDbContext _context;
 
-    public async Task<Document> GetByIdAsync(Guid id)
+    public async Task<Lake> GetByIdAsync(Guid id)
     {
-        return await _context.Documents
-            .Include(d => d.ExtractedData)
-            .FirstOrDefaultAsync(d => d.Id == id);
+        return await _context.Lakes
+            .Include(l => l.Regulations)
+            .FirstOrDefaultAsync(l => l.Id == id);
     }
 
-    public async Task<PagedResult<Document>> GetPagedAsync(DocumentFilter filter, int page, int pageSize)
+    public async Task<List<Lake>> SearchAsync(string searchTerm, string state = null)
     {
-        var query = _context.Documents.AsQueryable();
+        var query = _context.Lakes.AsQueryable();
 
-        if (filter.Status.HasValue)
-            query = query.Where(d => d.Status == filter.Status.Value);
-
-        if (filter.FromDate.HasValue)
-            query = query.Where(d => d.UploadedAt >= filter.FromDate.Value);
-
-        if (filter.ToDate.HasValue)
-            query = query.Where(d => d.UploadedAt <= filter.ToDate.Value);
-
-        var totalCount = await query.CountAsync();
-        var items = await query
-            .OrderByDescending(d => d.UploadedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        return new PagedResult<Document>
+        if (!string.IsNullOrEmpty(searchTerm))
         {
-            Items = items,
-            TotalCount = totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
+            query = query.Where(l => l.Name.Contains(searchTerm) || 
+                                   l.County.Contains(searchTerm));
+        }
+
+        if (!string.IsNullOrEmpty(state))
+        {
+            query = query.Where(l => l.State == state);
+        }
+
+        return await query
+            .OrderBy(l => l.Name)
+            .Take(50)
+            .ToListAsync();
+    }
+
+    public async Task<List<Lake>> GetByRegionAsync(decimal latitude, decimal longitude, double radiusMiles)
+    {
+        // Using geographic distance calculation
+        var latRange = radiusMiles / 69.0; // Approximate miles per degree latitude
+        var lonRange = radiusMiles / (69.0 * Math.Cos((double)latitude * Math.PI / 180.0));
+
+        return await _context.Lakes
+            .Where(l => Math.Abs((double)(l.Latitude - latitude)) <= latRange &&
+                       Math.Abs((double)(l.Longitude - longitude)) <= lonRange)
+            .OrderBy(l => 
+                Math.Sqrt(Math.Pow((double)(l.Latitude - latitude), 2) + 
+                         Math.Pow((double)(l.Longitude - longitude), 2)))
+            .ToListAsync();
     }
 }
 ```

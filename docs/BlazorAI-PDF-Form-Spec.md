@@ -1,25 +1,25 @@
-# Blazor AI PDF Form Population Specification
+# Blazor AI Fishing Regulations Application Specification
 
 ## 1. Executive Summary
 
-This specification outlines the development of a Blazor Server application that leverages Microsoft AI services to extract structured data from PDF documents and automatically populate form fields. The application will provide an intuitive user interface for uploading PDF documents, processing them through AI-powered document intelligence services, and presenting the extracted data in editable forms.
+This specification outlines the development of a Blazor Server application that leverages Microsoft AI services to extract fishing regulations from PDF documents and present them through an intuitive lake selection interface. The application will process fishing regulations PDFs using AI-powered document intelligence services and allow users to select specific lakes to view their applicable fishing restrictions, seasons, and requirements.
 
 ## 2. Project Overview
 
 ### 2.1 Objectives
-- Create a Blazor Server application for PDF document processing
-- Integrate Microsoft AI services for intelligent data extraction
-- Provide automatic form field population based on extracted data
-- Ensure secure handling of sensitive document data
-- Deliver a responsive and user-friendly interface
+- Create a Blazor Server application for fishing regulations management
+- Integrate Microsoft AI services for intelligent PDF data extraction
+- Provide lake-based fishing regulation lookup functionality
+- Ensure accurate and up-to-date fishing regulation information
+- Deliver a responsive and user-friendly interface for anglers
 
 ### 2.2 Key Features
-- PDF document upload and validation
-- AI-powered text and data extraction
-- Dynamic form generation and population
-- Data validation and correction capabilities
-- Export functionality for processed data
-- Audit trail and logging
+- Fishing regulations PDF upload and processing
+- AI-powered extraction of lake-specific regulations
+- Interactive lake selection interface
+- Comprehensive regulation display (seasons, limits, restrictions)
+- Search and filter capabilities for lakes and regulations
+- Mobile-responsive design for field use
 
 ## 3. Technology Stack
 
@@ -58,139 +58,151 @@ This specification outlines the development of a Blazor Server application that 
 ### 4.2 Component Breakdown
 
 #### 4.2.1 Presentation Layer
-- **Upload Component**: Handles PDF file uploads with drag-and-drop functionality
-- **Form Components**: Dynamic form generation based on document type
-- **Progress Component**: Shows processing status and progress indicators
-- **Results Component**: Displays extracted data with editing capabilities
-- **Export Component**: Provides data export in various formats
+- **Lake Selection Component**: Interactive map and list-based lake selection
+- **Regulation Display Component**: Comprehensive regulation presentation
+- **Search Component**: Lake and regulation search functionality  
+- **Upload Component**: Handles fishing regulations PDF uploads
+- **Admin Components**: Regulation management and PDF processing status
 
 #### 4.2.2 Business Logic Layer
-- **Document Processing Service**: Orchestrates the AI extraction workflow
-- **Form Configuration Service**: Manages form templates and field mappings
-- **Validation Service**: Handles data validation and business rules
-- **Export Service**: Manages data export functionality
+- **Regulation Processing Service**: Orchestrates the AI extraction workflow for fishing data
+- **Lake Management Service**: Manages lake data and geographic information
+- **Regulation Search Service**: Handles search and filtering of regulations
+- **PDF Processing Service**: Manages fishing regulations document processing
 
 #### 4.2.3 Data Access Layer
-- **Document Repository**: CRUD operations for document metadata
-- **Form Template Repository**: Manages form configurations
-- **Audit Repository**: Tracks processing history and changes
+- **Lake Repository**: CRUD operations for lake information
+- **Regulation Repository**: Manages fishing regulation data
+- **PDF Document Repository**: Tracks processed regulation documents
+- **Audit Repository**: Tracks regulation updates and changes
 
 #### 4.2.4 Integration Layer
-- **Azure AI Document Intelligence Client**: Handles PDF analysis and extraction
-- **Azure OpenAI Client**: Processes natural language and context understanding
-- **Blob Storage Client**: Manages file upload and storage
+- **Azure AI Document Intelligence Client**: Handles PDF analysis and regulation extraction
+- **Azure OpenAI Client**: Enhances regulation data interpretation and standardization
+- **Blob Storage Client**: Manages regulation PDF storage
 
 ## 5. Detailed Feature Specifications
 
 ### 5.1 PDF Upload and Processing
 
 #### 5.1.1 File Upload Requirements
-- **Supported Formats**: PDF files only
+- **Supported Formats**: PDF files containing fishing regulations
 - **File Size Limit**: Maximum 50MB per file
-- **Upload Methods**: 
-  - Drag and drop interface
-  - File browser selection
-  - Batch upload support (up to 10 files)
+- **Content Requirements**: 
+  - Must contain lake-specific fishing information
+  - Should include regulation text and tabular data
+  - May contain maps and diagrams
 - **Validation Rules**:
   - File format validation
   - Size limit enforcement
-  - Virus scanning integration
-  - Password-protected PDF handling
+  - Content verification for fishing regulation keywords
 
 #### 5.1.2 Processing Workflow
 ```mermaid
 graph TD
-    A[File Upload] --> B[Validation]
+    A[Regulations PDF Upload] --> B[Content Validation]
     B --> C[Store in Blob Storage]
-    C --> D[Submit to AI Document Intelligence]
-    D --> E[Process with Azure OpenAI]
-    E --> F[Extract Structured Data]
-    F --> G[Populate Form Fields]
-    G --> H[Present for Review]
+    C --> D[AI Document Analysis]
+    D --> E[Extract Lake Information]
+    E --> F[Extract Fishing Regulations]
+    F --> G[Structure Regulation Data]
+    G --> H[Store in Database]
+    H --> I[Enable Lake Selection]
 ```
 
-### 5.2 AI-Powered Data Extraction
+### 5.2 AI-Powered Fishing Regulation Extraction
 
 #### 5.2.1 Azure AI Document Intelligence Integration
 - **Service Tier**: Standard tier for production use
 - **Models**: 
-  - Prebuilt models for common documents (invoices, receipts, business cards)
-  - Custom models for organization-specific documents
+  - Prebuilt document model for general text extraction
+  - Custom model trained on fishing regulation documents
+  - Table extraction for regulation data
 - **Extraction Capabilities**:
-  - Text extraction with position coordinates
-  - Key-value pair identification
-  - Table structure recognition
-  - Checkbox and signature detection
+  - Lake names and geographic identifiers
+  - Fishing seasons and date ranges
+  - Species-specific regulations
+  - Bag limits and size restrictions
+  - Special regulation text and conditions
 
 #### 5.2.2 Azure OpenAI Enhancement
-- **Model**: GPT-4 for natural language understanding
+- **Model**: GPT-4 for natural language understanding of fishing regulations
 - **Use Cases**:
-  - Contextual field mapping
-  - Data normalization and standardization
-  - Ambiguity resolution
-  - Quality assessment and confidence scoring
+  - Lake name standardization and geocoding
+  - Regulation text interpretation and structuring
+  - Date parsing and season calculation
+  - Species name normalization
+  - Regulation conflict detection and resolution
 
-### 5.3 Dynamic Form Generation
+### 5.3 Lake Selection and Regulation Display
 
-#### 5.3.1 Form Template System
-- **Template Types**:
-  - Invoice processing forms
-  - Contract analysis forms
-  - Identity document forms
-  - Custom business forms
-- **Field Types**:
-  - Text inputs (single/multi-line)
-  - Numeric inputs with validation
-  - Date pickers with format detection
-  - Dropdown selections
-  - Checkboxes and radio buttons
-  - File attachments
+#### 5.3.1 Lake Selection Interface
+- **Selection Methods**:
+  - Interactive map with clickable lake markers
+  - Searchable dropdown list with autocomplete
+  - Geographic region-based browsing
+  - Favorite lakes for quick access
+- **Lake Information Display**:
+  - Lake name and location details
+  - Available fish species
+  - Lake size and depth information
+  - Access points and facilities
 
-#### 5.3.2 Field Mapping Configuration
+#### 5.3.2 Regulation Data Structure
 ```json
 {
-  "formTemplate": {
-    "id": "invoice-template",
-    "name": "Invoice Processing Form",
-    "fields": [
+  "lakeRegulations": {
+    "lakeId": "lake-superior",
+    "lakeName": "Lake Superior",
+    "location": {
+      "state": "Minnesota",
+      "county": "Cook County",
+      "coordinates": [47.7211, -89.8794]
+    },
+    "fishingSeasons": [
       {
-        "id": "invoiceNumber",
-        "label": "Invoice Number",
-        "type": "text",
-        "required": true,
-        "aiMapping": {
-          "keywords": ["invoice number", "invoice #", "inv #"],
-          "patterns": ["INV-\\d+", "\\d{6,}"]
-        }
-      },
-      {
-        "id": "totalAmount",
-        "label": "Total Amount",
-        "type": "currency",
-        "required": true,
-        "aiMapping": {
-          "keywords": ["total", "amount due", "balance"],
-          "patterns": ["\\$?\\d+\\.\\d{2}"]
-        }
+        "species": "Lake Trout",
+        "openDate": "2025-01-01",
+        "closeDate": "2025-09-30",
+        "specialNotes": "Year-round with summer restrictions"
       }
+    ],
+    "bagLimits": [
+      {
+        "species": "Lake Trout", 
+        "dailyLimit": 3,
+        "possessionLimit": 6,
+        "restrictions": "No more than 1 fish over 28 inches"
+      }
+    ],
+    "sizeLimits": [
+      {
+        "species": "Lake Trout",
+        "minimumSize": "15 inches",
+        "protectedSlot": "28-36 inches"
+      }
+    ],
+    "specialRegulations": [
+      "Barbless hooks required for lake trout",
+      "No live bait below 63 feet depth"
     ]
   }
 }
 ```
 
-### 5.4 Data Validation and Correction
+### 5.4 Regulation Data Validation and Updates
 
 #### 5.4.1 Validation Rules
-- **Format Validation**: Email, phone numbers, dates, currencies
-- **Business Rules**: Cross-field validation, range checks
-- **AI Confidence Scoring**: Highlight fields with low confidence
-- **Manual Override**: Allow users to correct AI-extracted data
+- **Date Validation**: Fishing season dates and current year applicability
+- **Species Validation**: Cross-reference with state fish species database
+- **Regulation Consistency**: Check for conflicting regulations within lake data
+- **Geographic Validation**: Verify lake locations and jurisdiction boundaries
 
-#### 5.4.2 Quality Assurance Features
-- **Confidence Indicators**: Visual indicators for extraction confidence
-- **Suggestion System**: Alternative values based on context
-- **Review Workflow**: Multi-step approval process for critical documents
-- **Audit Trail**: Track all changes and corrections
+#### 5.4.2 Data Quality Features
+- **Confidence Indicators**: Visual indicators for AI extraction confidence
+- **Manual Override**: Allow administrators to correct AI-extracted regulations
+- **Update Tracking**: Monitor regulation changes and effective dates
+- **Audit Trail**: Track all regulation updates and data sources
 
 ## 6. User Interface Design
 
@@ -202,21 +214,20 @@ graph TD
 
 ### 6.2 Key User Workflows
 
-#### 6.2.1 Document Upload Workflow
-1. User navigates to upload page
-2. Selects or drags PDF files
-3. System validates files and shows preview
-4. User confirms upload and processing begins
-5. Progress indicator shows processing status
-6. Results page displays when complete
+#### 6.2.1 Lake Selection and Regulation Viewing Workflow
+1. User opens the application
+2. Selects lake via map, search, or browse
+3. System displays comprehensive fishing regulations
+4. User can filter by species or regulation type
+5. User can save lake to favorites for quick access
 
-#### 6.2.2 Form Population Workflow
-1. System displays extracted data in form fields
-2. Confidence indicators highlight uncertain extractions
-3. User reviews and corrects data as needed
-4. Validation rules enforce data quality
-5. User submits final form
-6. System provides export and save options
+#### 6.2.2 Regulation PDF Processing Workflow (Admin)
+1. Administrator uploads new fishing regulations PDF
+2. System validates document content
+3. AI extracts lake and regulation data
+4. Administrator reviews and validates extracted data
+5. System updates lake regulations in database
+6. Users see updated regulations immediately
 
 ### 6.3 Responsive Design Considerations
 - **Mobile-First**: Optimized for tablets and mobile devices
@@ -228,52 +239,62 @@ graph TD
 
 ### 7.1 Core Entities
 
-#### 7.1.1 Document Entity
+#### 7.1.1 Lake Entity
 ```csharp
-public class Document
+public class Lake
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; }
+    public string State { get; set; }
+    public string County { get; set; }
+    public decimal Latitude { get; set; }
+    public decimal Longitude { get; set; }
+    public string Description { get; set; }
+    public List<string> FishSpecies { get; set; }
+    public DateTime LastUpdated { get; set; }
+    public List<FishingRegulation> Regulations { get; set; }
+}
+```
+
+#### 7.1.2 Fishing Regulation Entity
+```csharp
+public class FishingRegulation
+{
+    public Guid Id { get; set; }
+    public Guid LakeId { get; set; }
+    public string Species { get; set; }
+    public DateTime? SeasonOpenDate { get; set; }
+    public DateTime? SeasonCloseDate { get; set; }
+    public int? DailyBagLimit { get; set; }
+    public int? PossessionLimit { get; set; }
+    public string MinimumSize { get; set; }
+    public string MaximumSize { get; set; }
+    public string ProtectedSlot { get; set; }
+    public List<string> SpecialRegulations { get; set; }
+    public decimal ConfidenceScore { get; set; }
+    public bool IsValidated { get; set; }
+    public DateTime EffectiveDate { get; set; }
+    public string Source { get; set; }
+}
+```
+
+#### 7.1.3 Regulation Document Entity
+```csharp
+public class RegulationDocument
 {
     public Guid Id { get; set; }
     public string FileName { get; set; }
     public string OriginalName { get; set; }
     public long FileSize { get; set; }
-    public string ContentType { get; set; }
     public string BlobUrl { get; set; }
     public DocumentStatus Status { get; set; }
     public DateTime UploadedAt { get; set; }
     public string UploadedBy { get; set; }
     public DateTime? ProcessedAt { get; set; }
-    public List<ExtractedData> ExtractedData { get; set; }
-}
-```
-
-#### 7.1.2 Form Template Entity
-```csharp
-public class FormTemplate
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; }
-    public string Description { get; set; }
-    public string TemplateJson { get; set; }
-    public bool IsActive { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public List<FormField> Fields { get; set; }
-}
-```
-
-#### 7.1.3 Extracted Data Entity
-```csharp
-public class ExtractedData
-{
-    public Guid Id { get; set; }
-    public Guid DocumentId { get; set; }
-    public string FieldName { get; set; }
-    public string FieldValue { get; set; }
-    public decimal ConfidenceScore { get; set; }
-    public string ExtractionSource { get; set; }
-    public bool IsValidated { get; set; }
-    public string CorrectedValue { get; set; }
-    public DateTime ExtractedAt { get; set; }
+    public int ExtractedLakeCount { get; set; }
+    public int ExtractedRegulationCount { get; set; }
+    public string RegulationYear { get; set; }
+    public string IssuingAuthority { get; set; }
 }
 ```
 

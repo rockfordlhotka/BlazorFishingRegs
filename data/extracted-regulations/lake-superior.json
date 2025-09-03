@@ -1,0 +1,82 @@
+{
+  "lakeId": 1,
+  "lakeName": "Lake Superior",
+  "regulations": {
+    "fishingSeasons": [
+      {
+        "species": "Lake Trout",
+        "openDate": "2025-01-01",
+        "closeDate": "2025-09-30",
+        "notes": "Year-round fishing with special summer restrictions"
+      },
+      {
+        "species": "Salmon",
+        "openDate": "2025-04-15",
+        "closeDate": "2025-10-31",
+        "notes": "Spring through fall season"
+      },
+      {
+        "species": "Northern Pike",
+        "openDate": "2025-05-01",
+        "closeDate": "2025-02-28",
+        "notes": "Closed during spawning season in March-April"
+      }
+    ],
+    "bagLimits": [
+      {
+        "species": "Lake Trout",
+        "dailyLimit": 3,
+        "possessionLimit": 6,
+        "notes": "No more than 1 fish over 28 inches"
+      },
+      {
+        "species": "Salmon",
+        "dailyLimit": 3,
+        "possessionLimit": 6,
+        "notes": "Combined limit for all salmon species"
+      },
+      {
+        "species": "Northern Pike",
+        "dailyLimit": 3,
+        "possessionLimit": 6,
+        "notes": "Standard northern pike limits"
+      }
+    ],
+    "sizeLimits": [
+      {
+        "species": "Lake Trout",
+        "minimumSize": "15 inches",
+        "maximumSize": null,
+        "protectedSlot": "28-36 inches (1 fish allowed)",
+        "notes": "Special regulations for trophy fish"
+      },
+      {
+        "species": "Salmon",
+        "minimumSize": "10 inches",
+        "maximumSize": null,
+        "protectedSlot": null,
+        "notes": "Standard salmon size limit"
+      }
+    ],
+    "specialRegulations": [
+      {
+        "regulation": "Barbless hooks required for lake trout",
+        "applicableSpecies": ["Lake Trout"],
+        "details": "Single barbless hooks or hooks with barbs pinched down"
+      },
+      {
+        "regulation": "No live bait below 63 feet",
+        "applicableSpecies": ["All"],
+        "details": "Artificial lures only in deep water to protect lake trout"
+      }
+    ],
+    "licenseRequirements": {
+      "required": true,
+      "type": "Minnesota Fishing License",
+      "additionalStamps": ["Lake Superior Stamp"],
+      "notes": "Lake Superior stamp required for all anglers 16 and older"
+    },
+    "lastUpdated": "2025-09-03",
+    "source": "Minnesota DNR Fishing Regulations 2025"
+  }
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "name": "Lake Superior",
+    "state": "Minnesota",
+    "county": "Cook County",
+    "location": {
+      "latitude": 47.7211,
+      "longitude": -89.8794
+    },
+    "description": "Large freshwater lake on the Minnesota-Canada border",
+    "fishSpecies": ["Lake Trout", "Salmon", "Northern Pike", "Walleye"]
+  },
+  {
+    "id": 2,
+    "name": "Mille Lacs Lake",
+    "state": "Minnesota", 
+    "county": "Mille Lacs County",
+    "location": {
+      "latitude": 46.1833,
+      "longitude": -93.6500
+    },
+    "description": "Popular walleye fishing destination in central Minnesota",
+    "fishSpecies": ["Walleye", "Northern Pike", "Smallmouth Bass", "Muskie"]
+  },
+  {
+    "id": 3,
+    "name": "Lake Minnetonka",
+    "state": "Minnesota",
+    "county": "Hennepin County",
+    "location": {
+      "latitude": 44.9167,
+      "longitude": -93.5833
+    },
+    "description": "Large recreational lake west of Minneapolis",
+    "fishSpecies": ["Bass", "Northern Pike", "Walleye", "Bluegill", "Crappie"]
+  },
+  {
+    "id": 4,
+    "name": "Leech Lake",
+    "state": "Minnesota",
+    "county": "Cass County",
+    "location": {
+      "latitude": 47.1500,
+      "longitude": -94.3500
+    },
+    "description": "Third largest lake in Minnesota, known for walleye and muskie",
+    "fishSpecies": ["Walleye", "Northern Pike", "Muskie", "Perch", "Bass"]
+  },
+  {
+    "id": 5,
+    "name": "Lake Vermilion",
+    "state": "Minnesota",
+    "county": "St. Louis County",
+    "location": {
+      "latitude": 47.9167,
+      "longitude": -92.2833
+    },
+    "description": "Clear water lake in the Boundary Waters region",
+    "fishSpecies": ["Walleye", "Northern Pike", "Bass", "Lake Trout"]
+  }
+]
