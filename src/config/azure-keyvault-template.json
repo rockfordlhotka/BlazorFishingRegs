@@ -1,0 +1,119 @@
+{
+  "//": "Azure Key Vault Configuration Template",
+  "//": "This file provides the structure for storing secrets in Azure Key Vault",
+  "//": "Copy this template and update the values for your Key Vault instance",
+
+  "KeyVaultConfiguration": {
+    "VaultName": "fishing-regs-kv",
+    "VaultUri": "https://fishing-regs-kv.vault.azure.net/",
+    "ClientId": "your-app-registration-client-id",
+    "TenantId": "your-azure-tenant-id",
+    "UseClientSecret": false,
+    "UseManagedIdentity": true
+  },
+
+  "Secrets": {
+    "Database": {
+      "SqlConnectionString": {
+        "SecretName": "sql-connection-string",
+        "Description": "SQL Server connection string for production database",
+        "Example": "Server=your-server.database.windows.net;Database=FishingRegsDB;Authentication=Active Directory Default;TrustServerCertificate=True"
+      }
+    },
+
+    "Cache": {
+      "RedisConnectionString": {
+        "SecretName": "redis-connection-string", 
+        "Description": "Azure Cache for Redis connection string",
+        "Example": "your-cache.redis.cache.windows.net:6380,password=your-key,ssl=True,abortConnect=False"
+      }
+    },
+
+    "Storage": {
+      "AzureStorageConnectionString": {
+        "SecretName": "azure-storage-connection-string",
+        "Description": "Azure Storage account connection string",
+        "Example": "DefaultEndpointsProtocol=https;AccountName=your-account;AccountKey=your-key;EndpointSuffix=core.windows.net"
+      }
+    },
+
+    "AzureOpenAI": {
+      "ApiKey": {
+        "SecretName": "azure-openai-api-key",
+        "Description": "Azure OpenAI service API key",
+        "Example": "1234567890abcdef1234567890abcdef"
+      },
+      "Endpoint": {
+        "SecretName": "azure-openai-endpoint", 
+        "Description": "Azure OpenAI service endpoint URL",
+        "Example": "https://your-openai-resource.openai.azure.com/"
+      },
+      "DeploymentName": {
+        "SecretName": "azure-openai-deployment-name",
+        "Description": "Azure OpenAI GPT-4 deployment name",
+        "Example": "gpt-4"
+      }
+    },
+
+    "DocumentIntelligence": {
+      "ApiKey": {
+        "SecretName": "azure-document-intelligence-api-key",
+        "Description": "Azure Document Intelligence API key",
+        "Example": "abcdef1234567890abcdef1234567890"
+      },
+      "Endpoint": {
+        "SecretName": "azure-document-intelligence-endpoint",
+        "Description": "Azure Document Intelligence endpoint URL", 
+        "Example": "https://your-doc-intel.cognitiveservices.azure.com/"
+      }
+    },
+
+    "Application": {
+      "ApiKey": {
+        "SecretName": "fishing-regs-api-key",
+        "Description": "Application API key for external access",
+        "Example": "fishing-regs-api-key-production-random-string"
+      },
+      "JwtSecret": {
+        "SecretName": "fishing-regs-jwt-secret",
+        "Description": "JWT signing secret (minimum 256 bits)",
+        "Example": "your-super-secure-jwt-signing-secret-minimum-256-bits"
+      },
+      "CertificatePassword": {
+        "SecretName": "ssl-certificate-password",
+        "Description": "SSL certificate password",
+        "Example": "your-ssl-cert-password"
+      }
+    },
+
+    "Monitoring": {
+      "SeqApiKey": {
+        "SecretName": "seq-api-key",
+        "Description": "Seq logging service API key",
+        "Example": "your-seq-api-key"
+      },
+      "ApplicationInsightsConnectionString": {
+        "SecretName": "application-insights-connection-string",
+        "Description": "Azure Application Insights connection string",
+        "Example": "InstrumentationKey=your-key;IngestionEndpoint=https://your-region.in.applicationinsights.azure.com/"
+      }
+    }
+  },
+
+  "ConfigurationMapping": {
+    "//": "Maps Key Vault secret names to application configuration keys",
+    "ConnectionStrings:DefaultConnection": "sql-connection-string",
+    "ConnectionStrings:Redis": "redis-connection-string",
+    "ConnectionStrings:AzureStorage": "azure-storage-connection-string",
+    "AzureOpenAI:ApiKey": "azure-openai-api-key",
+    "AzureOpenAI:Endpoint": "azure-openai-endpoint",
+    "AzureOpenAI:DeploymentName": "azure-openai-deployment-name",
+    "AzureDocumentIntelligence:ApiKey": "azure-document-intelligence-api-key",
+    "AzureDocumentIntelligence:Endpoint": "azure-document-intelligence-endpoint",
+    "ApplicationSettings:ApiKey": "fishing-regs-api-key",
+    "ApplicationSettings:JwtSecret": "fishing-regs-jwt-secret",
+    "ApplicationSettings:CertificatePassword": "ssl-certificate-password",
+    "Seq:ApiKey": "seq-api-key",
+    "ApplicationInsights:ConnectionString": "application-insights-connection-string"
+  }
+}

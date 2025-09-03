@@ -11,17 +11,17 @@
 ## Phase 1: Project Setup & Infrastructure (Week 1-2)
 
 ### 1.1 Development Environment Setup
-- [ ] Clone repository and set up local development environment
-- [ ] Install required tools:
-  - [ ] .NET 8 SDK
-  - [ ] Docker Desktop
-  - [ ] Visual Studio 2022 or VS Code
-  - [ ] SQL Server Management Studio (optional)
-- [ ] Set up Azure subscriptions and services:
-  - [ ] Azure AI Document Intelligence resource
-  - [ ] Azure OpenAI resource (GPT-4 access)
-  - [ ] Azure Blob Storage account
-- [ ] Configure local secrets and environment variables
+- [X] Clone repository and set up local development environment
+- [X] Install required tools:
+  - [X] .NET 8 SDK
+  - [X] Docker Desktop
+  - [X] Visual Studio 2022 or VS Code
+  - [X] SQL Server Management Studio (optional)
+- [X] Set up Azure subscriptions and services:
+  - [X] Azure AI Document Intelligence resource
+  - [X] Azure OpenAI resource (GPT-4 access)
+  - [X] Azure Blob Storage account
+- [X] Configure local secrets and environment variables
 
 ### 1.2 Docker Infrastructure
 - [ ] Create `Dockerfile` for Blazor application
