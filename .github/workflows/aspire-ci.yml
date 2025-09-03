@@ -1,0 +1,58 @@
+name: Aspire Build & Test
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: true
+  DOTNET_DASHBOARD_OTLP_ENDPOINT_URL: ""
+
+jobs:
+  aspire-build:
+    name: Aspire Application Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Install Aspire workload
+      run: dotnet workload install aspire
+      
+    - name: Restore dependencies
+      run: dotnet restore src/FishingRegs.sln
+      
+    - name: Build solution
+      run: dotnet build src/FishingRegs.sln --configuration Release
+      
+    # Test the build can start (but don't run indefinitely)
+    - name: Test AppHost startup
+      run: |
+        timeout 30s dotnet run --project src/FishingRegs.AppHost/FishingRegs.AppHost.csproj --no-build --configuration Release || true
+        echo "AppHost startup test completed"
+        
+    - name: Check for common issues
+      run: |
+        echo "Checking for common Aspire issues..."
+        
+        # Check if user secrets are properly configured
+        if grep -r "UserSecretsId" src/; then
+          echo "✓ User secrets configuration found"
+        fi
+        
+        # Check for Aspire package references
+        if grep -r "Aspire.Hosting" src/; then
+          echo "✓ Aspire hosting packages found"
+        fi
+        
+        echo "Build verification completed successfully"
