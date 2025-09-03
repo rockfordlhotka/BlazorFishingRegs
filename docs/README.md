@@ -10,18 +10,21 @@ Welcome to the Blazor AI Fishing Regulations project documentation. This compreh
 | [Technical Architecture](./Technical-Architecture.md) | Detailed technical implementation guide for fishing domain | Developers, Architects | Sept 3, 2025 |
 | [API Specification](./API-Specification.md) | REST API documentation for lakes and regulations | Developers, Integrators | Sept 3, 2025 |
 | [Deployment Guide](./Deployment-Guide.md) | Azure deployment and configuration instructions | DevOps, System Administrators | Sept 3, 2025 |
+| [Process Flow Documentation](./Process-Flow-Documentation.md) | Detailed process flows and system diagrams | All stakeholders | Sept 3, 2025 |
 
 ## 🎯 Quick Start Guide
 
 ### For Project Managers
 1. Start with the [Main Specification](./BlazorAI-PDF-Form-Spec.md) for project overview and requirements
-2. Review implementation timeline and success metrics
-3. Understand security and compliance requirements
+2. Review the [Process Flow Documentation](./Process-Flow-Documentation.md) to understand user workflows
+3. Review implementation timeline and success metrics
+4. Understand security and compliance requirements
 
 ### For Developers
 1. Review the [Technical Architecture](./Technical-Architecture.md) for implementation details
-2. Reference the [API Specification](./API-Specification.md) for integration guidance
-3. Follow the [Deployment Guide](./Deployment-Guide.md) for environment setup
+2. Study the [Process Flow Documentation](./Process-Flow-Documentation.md) for detailed workflow understanding
+3. Reference the [API Specification](./API-Specification.md) for integration guidance
+4. Follow the [Deployment Guide](./Deployment-Guide.md) for environment setup
 
 ### For DevOps Engineers
 1. Focus on the [Deployment Guide](./Deployment-Guide.md) for infrastructure setup
@@ -30,8 +33,9 @@ Welcome to the Blazor AI Fishing Regulations project documentation. This compreh
 
 ### For System Integrators
 1. Study the [API Specification](./API-Specification.md) for integration endpoints
-2. Review authentication and security requirements
-3. Test with provided Postman collections and examples
+2. Review the [Process Flow Documentation](./Process-Flow-Documentation.md) for system interactions
+3. Review authentication and security requirements
+4. Test with provided Postman collections and examples
 
 ## 🏗️ Project Architecture Summary
 
