@@ -14,10 +14,10 @@
 
   "Secrets": {
     "Database": {
-      "SqlConnectionString": {
-        "SecretName": "sql-connection-string",
-        "Description": "SQL Server connection string for production database",
-        "Example": "Server=your-server.database.windows.net;Database=FishingRegsDB;Authentication=Active Directory Default;TrustServerCertificate=True"
+      "PostgreSQLConnectionString": {
+        "SecretName": "postgresql-connection-string",
+        "Description": "Azure Database for PostgreSQL connection string",
+        "Example": "Host=your-postgres-server.postgres.database.azure.com;Port=5432;Database=FishingRegsDB;Username=your-admin@your-postgres-server;Password=your-password;SslMode=Require"
       }
     },
 

@@ -12,7 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" Version="8.2.2" />
     <PackageReference Include="Aspire.Hosting" Version="8.2.2" />
-    <PackageReference Include="Aspire.Hosting.SqlServer" Version="8.2.2" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="8.2.2" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="8.2.2" />
     <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="8.2.2" />
     <PackageReference Include="Aspire.Hosting.Seq" Version="8.2.2" />

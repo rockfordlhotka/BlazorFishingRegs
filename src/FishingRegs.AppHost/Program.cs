@@ -2,11 +2,14 @@ using Aspire.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// Add SQL Server
-var sqlServer = builder.AddSqlServer("sql-server")
-    .WithDataVolume("fishing-regs-sql-data");
+// Add PostgreSQL (supports both local and Azure PostgreSQL)
+// For local development, uses containerized PostgreSQL
+// For Azure, configure connection string in user secrets or app settings
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume("fishing-regs-postgres-data")
+    .WithEnvironment("POSTGRES_DB", "FishingRegsDB");
 
-var database = sqlServer.AddDatabase("FishingRegsDB");
+var database = postgres.AddDatabase("FishingRegsDB");
 
 // Add Redis Cache
 var redis = builder.AddRedis("redis")

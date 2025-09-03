@@ -1,0 +1,61 @@
+{
+  "//": "Azure PostgreSQL Configuration Template",
+  "//": "Use this configuration when connecting to Azure Database for PostgreSQL",
+  "//": "Replace the placeholders with your actual Azure PostgreSQL instance details",
+
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=your-postgres-server.postgres.database.azure.com;Port=5432;Database=FishingRegsDB;Username=your-admin-user@your-postgres-server;Password=your-password;SslMode=Require;Trust Server Certificate=true",
+    "Redis": "your-redis-cache.redis.cache.windows.net:6380,password=your-redis-key,ssl=True,abortConnect=False",
+    "AzureStorage": "DefaultEndpointsProtocol=https;AccountName=your-storage-account;AccountKey=your-account-key;EndpointSuffix=core.windows.net"
+  },
+
+  "AzurePostgreSQL": {
+    "Server": "your-postgres-server.postgres.database.azure.com",
+    "Database": "FishingRegsDB",
+    "Username": "your-admin-user@your-postgres-server",
+    "Port": 5432,
+    "SslMode": "Require",
+    "TrustServerCertificate": true,
+    "CommandTimeout": 30,
+    "MaxPoolSize": 100
+  },
+
+  "AzureOpenAI": {
+    "Endpoint": "https://your-openai-resource.openai.azure.com/",
+    "ApiKey": "your-azure-openai-api-key-here",
+    "DeploymentName": "gpt-4"
+  },
+
+  "AzureDocumentIntelligence": {
+    "Endpoint": "https://your-document-intelligence.cognitiveservices.azure.com/",
+    "ApiKey": "your-document-intelligence-api-key-here"
+  },
+
+  "AzureStorage": {
+    "ConnectionString": "DefaultEndpointsProtocol=https;AccountName=your-storage-account;AccountKey=your-account-key;EndpointSuffix=core.windows.net",
+    "ContainerName": "fishing-regulations"
+  },
+
+  "ApplicationSettings": {
+    "ApiKey": "production-api-key",
+    "JwtSecret": "production-jwt-secret-minimum-256-bits",
+    "UseMockAIServices": false,
+    "Environment": "Production"
+  },
+
+  "Seq": {
+    "ServerUrl": "https://your-seq-instance.example.com",
+    "ApiKey": "your-seq-api-key"
+  },
+
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore": "Warning",
+      "Npgsql": "Warning"
+    }
+  },
+
+  "AllowedHosts": "your-domain.com,*.your-domain.com"
+}

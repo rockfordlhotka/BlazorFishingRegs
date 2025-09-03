@@ -37,7 +37,7 @@
 - [X] Create development scripts (setup/validation)
 
 ### 1.3 CI/CD Pipeline Setup
-- [ ] Set up GitHub Actions or Azure DevOps pipelines
+- [X] Set up GitHub Actions or Azure DevOps pipelines
 - [ ] Configure automated testing workflows
 - [ ] Set up Azure Container Apps or App Service deployment
 - [ ] Configure deployment pipelines for staging/production

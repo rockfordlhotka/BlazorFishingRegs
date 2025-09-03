@@ -1,5 +1,8 @@
 # 🎣 Blazor Fishing Regulations - .NET Aspire Setup
 
+[![CI Build](https://github.com/rockfordlhotka/BlazorFishingRegs/actions/workflows/ci.yml/badge.svg)](https://github.com/rockfordlhotka/BlazorFishingRegs/actions/workflows/ci.yml)
+[![Aspire Build](https://github.com/rockfordlhotka/BlazorFishingRegs/actions/workflows/aspire-ci.yml/badge.svg)](https://github.com/rockfordlhotka/BlazorFishingRegs/actions/workflows/aspire-ci.yml)
+
 Welcome! This project uses **.NET Aspire** for orchestration and development. Follow these simple steps to get started.
 
 ## 🚀 Quick Start (5 minutes)
@@ -32,7 +35,7 @@ That's it! 🎉
 ## 🔧 What .NET Aspire Provides
 
 ### Automatic Service Management
-- **SQL Server** - Database with data persistence
+- **PostgreSQL** - Database with data persistence (supports Azure PostgreSQL)
 - **Redis** - Caching with automatic discovery
 - **Azurite** - Azure Storage emulator for PDFs
 - **Seq** - Centralized logging with dashboard
@@ -120,6 +123,9 @@ dotnet run --project src\FishingRegs.AppHost
 
 # Configure Azure Key Vault (production)
 .\src\scripts\setup-azure-keyvault.ps1 -KeyVaultName "fishing-regs-kv" -Interactive
+
+# Setup Azure PostgreSQL
+.\src\scripts\setup-azure-postgresql.ps1 -ResourceGroupName "fishing-regs-rg" -ServerName "fishing-regs-db" -AdminUsername "fishadmin" -AdminPassword (ConvertTo-SecureString "YourPassword" -AsPlainText -Force)
 ```
 
 ## 🚀 Next Steps
