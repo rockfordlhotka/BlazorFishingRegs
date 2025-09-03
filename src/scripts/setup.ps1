@@ -70,19 +70,13 @@ try {
         throw "Environment setup failed"
     }
     
-    Write-Host "`n🔐 Step 2: Setting up user secrets..." -ForegroundColor Cyan
+    Write-Host "`n🔐 Step 2: Setting up .NET Aspire..." -ForegroundColor Cyan
     
-    # Check if BlazorFishingRegs project exists
-    $projectPath = "src\BlazorFishingRegs"
-    if (-not (Test-Path $projectPath)) {
-        Write-Host "⚠️  Blazor project not found at $projectPath" -ForegroundColor Yellow
-        Write-Host "   User secrets will be configured when the project is created" -ForegroundColor Gray
-    } else {
-        if ($Environment -eq "Azure") {
-            & "$scriptDir\setup-user-secrets.ps1" -ProjectPath $projectPath -Azure $(if ($Reset) { "-Reset" } else { "" })
-        } else {
-            & "$scriptDir\setup-user-secrets.ps1" -ProjectPath $projectPath $(if ($Reset) { "-Reset" } else { "" })
-        }
+    # Run Aspire setup
+    & "$scriptDir\setup-aspire.ps1"
+    
+    if ($LASTEXITCODE -ne 0) {
+        throw "Aspire setup failed"
     }
     
     Write-Host "`n✅ Step 3: Validating configuration..." -ForegroundColor Cyan
@@ -94,25 +88,22 @@ try {
         
         Write-Host "`n🚀 NEXT STEPS:" -ForegroundColor Cyan
         Write-Host "==============" -ForegroundColor Cyan
-        Write-Host "1. Start Docker services:" -ForegroundColor Yellow
-        Write-Host "   docker-compose up -d" -ForegroundColor Gray
+        Write-Host "1. Start Aspire application:" -ForegroundColor Yellow
+        Write-Host "   dotnet run --project src\FishingRegs.AppHost" -ForegroundColor Gray
         Write-Host ""
-        Write-Host "2. Check service status:" -ForegroundColor Yellow
-        Write-Host "   docker-compose ps" -ForegroundColor Gray
+        Write-Host "2. Open Aspire Dashboard:" -ForegroundColor Yellow
+        Write-Host "   http://localhost:15888 (opens automatically)" -ForegroundColor Gray
         Write-Host ""
-        Write-Host "3. View logs:" -ForegroundColor Yellow
-        Write-Host "   docker-compose logs -f" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "4. Access services:" -ForegroundColor Yellow
-        Write-Host "   • Blazor App: https://localhost:8443" -ForegroundColor Gray
-        Write-Host "   • Seq Logs: http://localhost:8081" -ForegroundColor Gray
-        Write-Host "   • SQL Server: localhost:1433" -ForegroundColor Gray
+        Write-Host "3. Access services through dashboard:" -ForegroundColor Yellow
+        Write-Host "   • All services managed by Aspire" -ForegroundColor Gray
+        Write-Host "   • Built-in health checks and monitoring" -ForegroundColor Gray
+        Write-Host "   • Automatic service discovery" -ForegroundColor Gray
         Write-Host ""
         
         if ($Environment -eq "Development") {
-            Write-Host "📝 NOTE: Using local mock services for development" -ForegroundColor Blue
+            Write-Host "📝 NOTE: Using .NET Aspire orchestration with local services" -ForegroundColor Blue
         } else {
-            Write-Host "📝 NOTE: Using live Azure services" -ForegroundColor Blue
+            Write-Host "📝 NOTE: Using .NET Aspire orchestration with Azure services" -ForegroundColor Blue
         }
         
     } else {
@@ -127,7 +118,7 @@ try {
     Write-Host "==================" -ForegroundColor Yellow
     Write-Host "1. Check the detailed error message above" -ForegroundColor Gray
     Write-Host "2. Ensure you have required permissions" -ForegroundColor Gray
-    Write-Host "3. Verify Azure CLI is installed (for Azure environment)" -ForegroundColor Gray
+    Write-Host "3. Verify .NET Aspire is installed (dotnet workload list)" -ForegroundColor Gray
     Write-Host "4. Check network connectivity" -ForegroundColor Gray
     Write-Host "5. Review setup logs for more details" -ForegroundColor Gray
     

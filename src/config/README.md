@@ -1,43 +1,48 @@
 # Environment Configuration & Secrets Management
 
-This directory contains scripts and configuration files for managing environment variables and secrets for the Blazor Fishing Regulations application across different environments (Development, Staging, Production).
+This directory contains scripts and configuration files for managing environment variables and secrets for the Blazor Fishing Regulations application using **.NET Aspire** orchestration.
 
 ## 📁 Directory Structure
 
 ```
 src/
+├── FishingRegs.AppHost/                # .NET Aspire orchestration project
+│   ├── Program.cs                      # Service definitions and configuration
+│   └── FishingRegs.AppHost.csproj     
+├── FishingRegs.ServiceDefaults/        # Shared telemetry and configurations
+│   ├── Extensions.cs                   # OpenTelemetry, health checks
+│   └── FishingRegs.ServiceDefaults.csproj
 ├── config/
 │   ├── environments/
-│   │   ├── .env.template          # Template for environment variables
-│   │   ├── .env.development       # Development environment variables
-│   │   └── .env.production        # Production environment variables
-│   ├── azure-keyvault-template.json   # Azure Key Vault configuration template
-│   └── user-secrets-template.json     # .NET User Secrets template
+│   │   └── aspire-configuration.template  # Aspire configuration template
+│   ├── azure-keyvault-template.json       # Azure Key Vault configuration template
+│   └── user-secrets-template.json         # .NET User Secrets template
 └── scripts/
-    ├── setup-dev-environment.ps1      # Development environment setup
-    ├── setup-user-secrets.ps1         # .NET User Secrets configuration
-    ├── setup-azure-keyvault.ps1       # Azure Key Vault setup
-    └── validate-environment.ps1       # Environment validation
+    ├── setup.ps1                          # Main setup script (Aspire-focused)
+    ├── setup-dev-environment.ps1          # Development environment setup
+    ├── setup-aspire.ps1                   # Aspire workload installation
+    ├── setup-user-secrets.ps1             # .NET User Secrets configuration
+    ├── setup-azure-keyvault.ps1           # Azure Key Vault setup
+    └── validate-environment.ps1           # Environment validation
 ```
 
 ## 🚀 Quick Start
 
 ### For Development (Local)
 
-1. **Set up development environment:**
+1. **Set up Aspire development environment:**
    ```powershell
-   .\src\scripts\setup-dev-environment.ps1 -Local
+   .\src\scripts\setup.ps1
    ```
 
-2. **Start Docker containers:**
+2. **Start Aspire application:**
    ```powershell
-   docker-compose up -d
+   dotnet run --project src\FishingRegs.AppHost
    ```
 
-3. **Validate environment:**
-   ```powershell
-   .\src\scripts\validate-environment.ps1 -Environment Development
-   ```
+3. **Open Aspire Dashboard:**
+   - Dashboard opens automatically at http://localhost:15888
+   - All services are visible with health status, logs, and metrics
 
 ### For Production (Azure)
 
@@ -46,37 +51,46 @@ src/
    .\src\scripts\setup-azure-keyvault.ps1 -KeyVaultName "fishing-regs-kv" -ResourceGroupName "fishing-regs-rg" -CreateKeyVault -Interactive
    ```
 
-2. **Validate production environment:**
+2. **Configure Aspire for production:**
    ```powershell
-   .\src\scripts\validate-environment.ps1 -Environment Production -KeyVaultName "fishing-regs-kv"
+   .\src\scripts\setup-dev-environment.ps1 -Environment Azure
    ```
 
 ## 📋 Detailed Setup Instructions
 
 ### 1. Development Environment Setup
 
-#### Option A: Automated Setup (Recommended)
+#### Automated Setup (Recommended)
 ```powershell
-# Set up local development with mock services
-.\src\scripts\setup-dev-environment.ps1 -Local
+# Set up complete development environment with Aspire
+.\src\scripts\setup.ps1
 
 # OR set up with Azure services
-.\src\scripts\setup-dev-environment.ps1 -Azure
+.\src\scripts\setup.ps1 -Environment Azure
 ```
 
-#### Option B: Manual Setup
+This will:
+- Install .NET Aspire workload
+- Configure environment variables
+- Set up user secrets for Aspire projects
+- Validate the configuration
 
-1. **Copy environment template:**
+#### Manual Setup
+
+1. **Install Aspire workload:**
    ```powershell
-   Copy-Item "src\config\environments\.env.development" ".env"
+   dotnet workload install aspire
    ```
 
-2. **Set up .NET User Secrets:**
+2. **Set up environment:**
+   ```powershell
+   .\src\scripts\setup-dev-environment.ps1
+   ```
+
+3. **Configure Aspire secrets:**
    ```powershell
    .\src\scripts\setup-user-secrets.ps1
    ```
-
-3. **Update configuration as needed**
 
 ### 2. Production Environment Setup
 
@@ -109,15 +123,29 @@ src/
 
 ## 🔐 Required Secrets and Environment Variables
 
-### Development Environment
+### .NET Aspire Service Configuration
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SQL_CONNECTION_STRING` | Local SQL Server connection | `Server=localhost,1433;Database=FishingRegsDB;...` |
-| `REDIS_CONNECTION_STRING` | Local Redis connection | `localhost:6379` |
-| `AZURE_STORAGE_CONNECTION_STRING` | Azurite local storage | `UseDevelopmentStorage=true` |
-| `USE_MOCK_AI_SERVICES` | Enable mock AI services | `true` |
-| `MOCK_AI_SERVICE_URL` | Mock AI service endpoint | `http://localhost:7000` |
+| Service | Aspire Integration | Configuration |
+|---------|-------------------|--------------|
+| **SQL Server** | `builder.AddSqlServer("sql").AddDatabase("FishingRegsDB")` | Automatic connection strings |
+| **Redis Cache** | `builder.AddRedis("redis")` | Automatic service discovery |
+| **Azure Storage** | `builder.AddAzureStorage("storage").AddBlobs("documents")` | Local: Azurite, Prod: Azure Storage |
+| **Seq Logging** | `builder.AddSeq("seq")` | Automatic log forwarding |
+| **Azure OpenAI** | `builder.AddAzureOpenAI("openai").AddDeployment("gpt-4")` | API key via user secrets |
+| **Document Intelligence** | Custom integration with health checks | API key via user secrets |
+
+### Development Environment (Aspire Managed)
+
+All services are automatically configured by Aspire with service discovery and health checks.
+
+| Component | How It's Managed |
+|-----------|------------------|
+| Database | Aspire SQL Server container with data persistence |
+| Cache | Aspire Redis container with data persistence |
+| Storage | Azurite (Azure Storage Emulator) |
+| AI Services | Mock service container |
+| Logging | Seq container with dashboard integration |
+| Monitoring | Built-in OpenTelemetry and Aspire dashboard |
 
 ### Production Environment
 
@@ -135,25 +163,38 @@ src/
 
 ## 🛠️ Script Usage
 
-### setup-dev-environment.ps1
+### setup.ps1
 
-Sets up development environment variables and creates `.env` file for Docker Compose.
+Main entry point for setting up the complete Aspire development environment.
 
 ```powershell
-# Local development setup
-.\setup-dev-environment.ps1 -Local
+# Set up development environment with Aspire
+.\setup.ps1
 
-# Azure services setup
-.\setup-dev-environment.ps1 -Azure
+# Set up with Azure services
+.\setup.ps1 -Environment Azure
 
 # Reset and reconfigure
-.\setup-dev-environment.ps1 -Reset -Local
+.\setup.ps1 -Reset
 ```
 
-**Parameters:**
-- `-Local`: Configure for local development (default)
-- `-Azure`: Configure for Azure services
-- `-Reset`: Clear existing environment variables
+**What it does:**
+- Installs .NET Aspire workload
+- Configures environment variables
+- Sets up user secrets for Aspire projects
+- Validates the configuration
+
+### setup-aspire.ps1
+
+Installs and configures the .NET Aspire workload.
+
+```powershell
+# Install Aspire workload and validate setup
+.\setup-aspire.ps1
+
+# Skip workload installation if already installed
+.\setup-aspire.ps1 -SkipWorkloadInstall
+```
 
 ### setup-user-secrets.ps1
 
@@ -213,36 +254,39 @@ Validates environment configuration and tests connections.
 
 ## 🔄 Environment Variable Precedence
 
-The application follows .NET's configuration precedence (highest to lowest):
+With .NET Aspire, configuration follows this precedence (highest to lowest):
 
-1. **Command-line arguments**
-2. **Environment variables**
-3. **User secrets** (Development only)
+1. **Aspire service integrations** (automatic service discovery)
+2. **User secrets** (development)
+3. **Environment variables**
 4. **appsettings.{Environment}.json**
 5. **appsettings.json**
-6. **Azure Key Vault** (Production)
+6. **Azure Key Vault** (production)
 
-## 🐳 Docker Configuration
+## � .NET Aspire Benefits
 
-### Environment Files
+### vs Traditional Docker Compose
 
-- **`.env`**: Created by setup scripts, contains all Docker Compose variables
-- **`.env.development`**: Development-specific variables
-- **`.env.production`**: Production template (do not commit with real secrets)
+| Aspect | Docker Compose | .NET Aspire |
+|--------|----------------|-------------|
+| **Startup** | `docker-compose up -d` (30-45s) | `dotnet run` (15-20s) |
+| **Services** | Manual container configuration | Automatic service discovery |
+| **Monitoring** | External tools (Seq, etc.) | Built-in dashboard |
+| **Development** | Container debugging | Native .NET debugging |
+| **Hot Reload** | Limited support | Full .NET hot reload |
+| **Azure Integration** | Manual configuration | Native Azure service integrations |
 
-### Docker Compose Variables
+### Development Workflow
 
-Key environment variables used in `docker-compose.yml`:
+```bash
+# Single command starts everything
+dotnet run --project src\FishingRegs.AppHost
 
-```yaml
-services:
-  blazor-fishing-app:
-    environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
-      - SQL_CONNECTION_STRING=${SQL_CONNECTION_STRING}
-      - REDIS_CONNECTION_STRING=${REDIS_CONNECTION_STRING}
-      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
-      # ... other variables
+# Aspire Dashboard opens automatically
+# - View all services and their health
+# - Access logs from all components
+# - Monitor metrics and traces
+# - Direct links to service endpoints
 ```
 
 ## 🔒 Security Best Practices
@@ -268,12 +312,14 @@ services:
 ### Manual Testing
 
 ```powershell
-# Test development environment
-docker-compose up -d
-curl https://localhost:8443/health
+# Start Aspire application
+dotnet run --project src\FishingRegs.AppHost
+
+# Check health through Aspire dashboard
+# http://localhost:15888
 
 # Test environment validation
-.\src\scripts\validate-environment.ps1 -Environment Development -CheckConnections
+.\src\scripts\validate-environment.ps1 -Environment Development
 ```
 
 ### Automated Testing
@@ -294,34 +340,38 @@ The validation script generates a JSON report with all check results:
 
 ### Common Issues
 
-1. **Docker containers not starting:**
+1. **Aspire workload not installed:**
    ```powershell
-   docker-compose logs
-   docker-compose down && docker-compose up -d
+   # Install the workload
+   dotnet workload install aspire
+   
+   # Verify installation
+   dotnet workload list
    ```
 
-2. **Environment variables not loading:**
+2. **Services not starting:**
    ```powershell
-   # Check .env file exists
-   Get-Content .env
+   # Check Aspire logs in dashboard
+   # http://localhost:15888
    
-   # Verify user secrets
+   # Or check console output
+   dotnet run --project src\FishingRegs.AppHost --verbosity normal
+   ```
+
+3. **Environment variables not loading:**
+   ```powershell
+   # Check user secrets for AppHost project
+   cd src\FishingRegs.AppHost
    dotnet user-secrets list
    ```
 
-3. **Azure Key Vault access denied:**
+4. **Azure service access issues:**
    ```powershell
-   # Check access policies
-   az keyvault show --name "your-keyvault" --query "properties.accessPolicies"
+   # Verify Azure CLI authentication
+   az account show
    
-   # Grant access to current user
-   az keyvault set-policy --name "your-keyvault" --upn "your-email@domain.com" --secret-permissions get list
-   ```
-
-4. **SSL certificate issues:**
-   ```powershell
-   # Generate development certificate
-   dotnet dev-certs https --trust
+   # Check Key Vault access policies
+   az keyvault show --name "your-keyvault" --query "properties.accessPolicies"
    ```
 
 ### Getting Help
@@ -331,16 +381,14 @@ The validation script generates a JSON report with all check results:
    .\src\scripts\validate-environment.ps1 -Environment [Your-Environment]
    ```
 
-2. **Check the validation report** generated in the root directory
+2. **Check the Aspire dashboard** at http://localhost:15888
 
-3. **Review container logs:**
-   ```powershell
-   docker-compose logs [service-name]
-   ```
+3. **Review service logs** in the Aspire dashboard or console output
 
 ## 📚 Additional Resources
 
+- [.NET Aspire Documentation](https://learn.microsoft.com/en-us/dotnet/aspire/)
+- [Azure Service Integrations](https://learn.microsoft.com/en-us/dotnet/aspire/azure/)
 - [.NET Configuration Documentation](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/configuration/)
 - [Azure Key Vault Documentation](https://docs.microsoft.com/en-us/azure/key-vault/)
-- [Docker Compose Environment Variables](https://docs.docker.com/compose/environment-variables/)
 - [ASP.NET Core User Secrets](https://docs.microsoft.com/en-us/aspnet/core/security/app-secrets)

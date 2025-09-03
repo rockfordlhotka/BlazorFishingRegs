@@ -23,24 +23,23 @@
   - [X] Azure Blob Storage account
 - [X] Configure local secrets and environment variables
 
-### 1.2 Docker Infrastructure
-- [ ] Create `Dockerfile` for Blazor application
-- [ ] Set up `docker-compose.yml` with all services:
-  - [ ] Blazor Server app container
-  - [ ] SQL Server container
-  - [ ] Redis cache container
-  - [ ] Azurite storage emulator
-  - [ ] NGINX reverse proxy
-  - [ ] Seq logging container
-  - [ ] AI services mock container (for development)
-- [ ] Configure container networking and volumes
-- [ ] Test complete Docker environment startup
-- [ ] Create development scripts (start/stop/rebuild)
+### 1.2 .NET Aspire Infrastructure
+- [X] Set up .NET Aspire orchestration:
+  - [X] Create AppHost project for service orchestration
+  - [X] Create ServiceDefaults project for shared configurations
+  - [X] Configure SQL Server with data persistence
+  - [X] Configure Redis cache with data persistence
+  - [X] Configure Azurite storage emulator
+  - [X] Configure Seq logging integration
+  - [X] Configure AI services mock container (for development)
+- [X] Configure service networking and discovery
+- [X] Test complete Aspire environment startup
+- [X] Create development scripts (setup/validation)
 
 ### 1.3 CI/CD Pipeline Setup
 - [ ] Set up GitHub Actions or Azure DevOps pipelines
 - [ ] Configure automated testing workflows
-- [ ] Set up container registry (Azure Container Registry)
+- [ ] Set up Azure Container Apps or App Service deployment
 - [ ] Configure deployment pipelines for staging/production
 
 ---
@@ -71,13 +70,13 @@
 - [ ] Add Entity Framework configurations and constraints
 - [ ] Implement data validation and business rules
 - [ ] Create unit tests for repository layer
-- [ ] Set up database connection strings for different environments
+- [ ] Configure Aspire service integrations for database connection
 
 ### 2.3 Caching Layer
-- [ ] Configure Redis connection and settings
+- [ ] Configure Aspire Redis integration
 - [ ] Implement caching service:
   - [ ] `ICacheService` interface
-  - [ ] Redis implementation with fallback to memory cache
+  - [ ] Redis implementation with automatic service discovery
 - [ ] Add caching to lake and regulation queries
 - [ ] Implement cache invalidation strategies
 - [ ] Test cache performance and reliability

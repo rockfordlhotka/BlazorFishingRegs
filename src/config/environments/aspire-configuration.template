@@ -1,0 +1,69 @@
+# Blazor Fishing Regulations - .NET Aspire Configuration Template
+# This file shows the structure for configuring the application with .NET Aspire
+
+# =============================================================================
+# ASPIRE CONFIGURATION
+# =============================================================================
+# These settings are typically configured through Aspire's built-in service integrations
+
+# Development Environment
+ASPNETCORE_ENVIRONMENT=Development
+BLAZOR_FISHING_ENV=Development
+
+# =============================================================================
+# AZURE SERVICES CONFIGURATION (FOR PRODUCTION)
+# =============================================================================
+# When using Azure services, configure these through Aspire Azure integrations
+
+# Azure OpenAI Configuration
+# Configured via: builder.AddAzureOpenAI("openai").AddDeployment("gpt-4")
+# AZURE_OPENAI_ENDPOINT=https://your-openai-resource.openai.azure.com/
+# AZURE_OPENAI_API_KEY=your-openai-api-key
+# AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4
+
+# Azure Document Intelligence Configuration
+# Configured via: builder.AddAzureDocumentIntelligence("doc-intel")
+# AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=https://your-doc-intel-resource.cognitiveservices.azure.com/
+# AZURE_DOCUMENT_INTELLIGENCE_API_KEY=your-doc-intel-api-key
+
+# Azure Storage Configuration
+# Configured via: builder.AddAzureStorage("storage").AddBlobs("documents")
+# AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=your-account;AccountKey=your-key;EndpointSuffix=core.windows.net
+
+# =============================================================================
+# APPLICATION SECRETS
+# =============================================================================
+# Managed through .NET User Secrets and Azure Key Vault
+
+FISHING_REGS_API_KEY=your-production-api-key
+FISHING_REGS_JWT_SECRET=your-production-jwt-secret-minimum-256-bits
+
+# =============================================================================
+# LOCAL DEVELOPMENT SETTINGS
+# =============================================================================
+# These are automatically handled by Aspire service integrations
+
+# SQL Server - Configured via: builder.AddSqlServer("sql").AddDatabase("FishingRegsDB")
+# Redis - Configured via: builder.AddRedis("redis")  
+# Azurite - Configured via: builder.AddAzureStorage("storage")
+# Seq - Configured via: builder.AddSeq("seq")
+
+# Application-specific settings
+USE_MOCK_AI_SERVICES=true
+RATE_LIMIT_REQUESTS_PER_MINUTE=1000
+MAX_PDF_FILE_SIZE_MB=100
+MAX_CONCURRENT_UPLOADS=10
+
+# =============================================================================
+# PRODUCTION SETTINGS
+# =============================================================================
+# Security and performance settings for production deployment
+
+ASPNETCORE_ALLOWED_HOSTS=yourdomain.com;*.yourdomain.com
+CORS_ALLOWED_ORIGINS=https://yourdomain.com;https://api.yourdomain.com
+ENABLE_SWAGGER=false
+ENABLE_DEBUG_LOGGING=false
+
+# Health checks and monitoring
+HEALTH_CHECK_TIMEOUT_SECONDS=30
+HEALTH_CHECK_DEGRADED_TIMEOUT_SECONDS=60
