@@ -2,51 +2,35 @@
 
 <#
 .SYNOPSIS
-    Main entry point for setting up the Blazor Fishing Regulations development environment.
+    Sets up .NET Aspire for the Blazor Fishing Regulations application.
 
 .DESCRIPTION
-    This script provides a simple interface to set up the complete development environment
-    including environment variables, secrets, and Docker configuration.
+    This script provides a simple interface to set up .NET Aspire development environment
+    for the Blazor AI Fishing Regulations application.
 
-.PARAMETER Environment
-    Target environment: Development (default), Azure
-
-.PARAMETER Reset
-    Reset all existing configuration
+.PARAMETER SkipWorkloadInstall
+    Skip installing the Aspire workload (if already installed)
 
 .EXAMPLE
     .\setup.ps1
-    Sets up development environment with local services
-
-.EXAMPLE  
-    .\setup.ps1 -Environment Azure
-    Sets up development environment with Azure services
+    Install Aspire workload and set up environment
 
 .EXAMPLE
-    .\setup.ps1 -Reset
-    Resets and reconfigures development environment
+    .\setup.ps1 -SkipWorkloadInstall
+    Set up environment without installing workload
 #>
 
 param(
-    [ValidateSet("Development", "Azure")]
-    [string]$Environment = "Development",
-    [switch]$Reset
+    [switch]$SkipWorkloadInstall
 )
 
 $ErrorActionPreference = "Stop"
 
 Write-Host @"
-🎣 ============================================================= 🎣
-   Blazor AI Fishing Regulations - Environment Setup
-🎣 ============================================================= 🎣
+🚀 ============================================================= 🚀
+   Blazor AI Fishing Regulations - .NET Aspire Setup
+🚀 ============================================================= 🚀
 "@ -ForegroundColor Cyan
-
-Write-Host "Target Environment: $Environment" -ForegroundColor Yellow
-if ($Reset) {
-    Write-Host "Mode: Reset and Reconfigure" -ForegroundColor Yellow
-} else {
-    Write-Host "Mode: Setup" -ForegroundColor Yellow
-}
 
 # Get the script directory
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -58,59 +42,37 @@ Write-Host "`n📁 Working directory: $rootDir" -ForegroundColor Gray
 Push-Location $rootDir
 
 try {
-    Write-Host "`n🔧 Step 1: Setting up environment variables..." -ForegroundColor Cyan
-    
-    if ($Environment -eq "Azure") {
-        & "$scriptDir\setup-dev-environment.ps1" -Azure $(if ($Reset) { "-Reset" } else { "" })
-    } else {
-        & "$scriptDir\setup-dev-environment.ps1" -Local $(if ($Reset) { "-Reset" } else { "" })
-    }
-    
-    if ($LASTEXITCODE -ne 0) {
-        throw "Environment setup failed"
-    }
-    
-    Write-Host "`n🔐 Step 2: Setting up .NET Aspire..." -ForegroundColor Cyan
+    Write-Host "`n🔧 Setting up .NET Aspire..." -ForegroundColor Cyan
     
     # Run Aspire setup
-    & "$scriptDir\setup-aspire.ps1"
+    if ($SkipWorkloadInstall) {
+        & "$scriptDir\setup-aspire.ps1" -SkipWorkloadInstall
+    } else {
+        & "$scriptDir\setup-aspire.ps1"
+    }
     
     if ($LASTEXITCODE -ne 0) {
         throw "Aspire setup failed"
     }
     
-    Write-Host "`n✅ Step 3: Validating configuration..." -ForegroundColor Cyan
+    Write-Host "`n🎉 SUCCESS! .NET Aspire setup completed successfully!" -ForegroundColor Green
     
-    & "$scriptDir\validate-environment.ps1" -Environment Development
-    
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "`n🎉 SUCCESS! Environment setup completed successfully!" -ForegroundColor Green
-        
-        Write-Host "`n🚀 NEXT STEPS:" -ForegroundColor Cyan
-        Write-Host "==============" -ForegroundColor Cyan
-        Write-Host "1. Start Aspire application:" -ForegroundColor Yellow
-        Write-Host "   dotnet run --project src\FishingRegs.AppHost" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "2. Open Aspire Dashboard:" -ForegroundColor Yellow
-        Write-Host "   http://localhost:15888 (opens automatically)" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "3. Access services through dashboard:" -ForegroundColor Yellow
-        Write-Host "   • All services managed by Aspire" -ForegroundColor Gray
-        Write-Host "   • Built-in health checks and monitoring" -ForegroundColor Gray
-        Write-Host "   • Automatic service discovery" -ForegroundColor Gray
-        Write-Host ""
-        
-        if ($Environment -eq "Development") {
-            Write-Host "📝 NOTE: Using .NET Aspire orchestration with local services" -ForegroundColor Blue
-        } else {
-            Write-Host "📝 NOTE: Using .NET Aspire orchestration with Azure services" -ForegroundColor Blue
-        }
-        
-    } else {
-        Write-Host "`n⚠️  Environment validation found issues" -ForegroundColor Yellow
-        Write-Host "   Please review the validation report and fix any issues" -ForegroundColor Gray
-        Write-Host "   Run validation again: .\src\scripts\validate-environment.ps1 -Environment Development" -ForegroundColor Gray
-    }
+    Write-Host "`n🚀 NEXT STEPS:" -ForegroundColor Cyan
+    Write-Host "==============" -ForegroundColor Cyan
+    Write-Host "1. Start Aspire application:" -ForegroundColor Yellow
+    Write-Host "   dotnet run --project src\FishingRegs.AppHost" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "2. Open Aspire Dashboard:" -ForegroundColor Yellow
+    Write-Host "   http://localhost:15888 (opens automatically)" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "3. Access services through dashboard:" -ForegroundColor Yellow
+    Write-Host "   • All services managed by Aspire" -ForegroundColor Gray
+    Write-Host "   • Built-in health checks and monitoring" -ForegroundColor Gray
+    Write-Host "   • Automatic service discovery" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "📝 NOTE: Using .NET Aspire orchestration" -ForegroundColor Blue
+    Write-Host "   All services (SQL Server, Redis, Storage, etc.) are" -ForegroundColor Blue
+    Write-Host "   automatically managed through the Aspire dashboard." -ForegroundColor Blue
     
 } catch {
     Write-Host "`n❌ Setup failed: $_" -ForegroundColor Red
@@ -118,13 +80,14 @@ try {
     Write-Host "==================" -ForegroundColor Yellow
     Write-Host "1. Check the detailed error message above" -ForegroundColor Gray
     Write-Host "2. Ensure you have required permissions" -ForegroundColor Gray
-    Write-Host "3. Verify .NET Aspire is installed (dotnet workload list)" -ForegroundColor Gray
-    Write-Host "4. Check network connectivity" -ForegroundColor Gray
-    Write-Host "5. Review setup logs for more details" -ForegroundColor Gray
+    Write-Host "3. Verify .NET 8.0+ is installed (dotnet --version)" -ForegroundColor Gray
+    Write-Host "4. Check network connectivity for downloading workload" -ForegroundColor Gray
+    Write-Host "5. Run: dotnet workload list to see installed workloads" -ForegroundColor Gray
     
     exit 1
 } finally {
     Pop-Location
 }
 
-Write-Host "`n📚 For more information, see: src\config\README.md" -ForegroundColor Cyan
+Write-Host "`n📚 For more information about .NET Aspire:" -ForegroundColor Cyan
+Write-Host "   https://learn.microsoft.com/en-us/dotnet/aspire/" -ForegroundColor Gray
