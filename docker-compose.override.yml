@@ -1,0 +1,33 @@
+# Docker Compose override for development
+version: '3.8'
+
+services:
+  blazor-fishing-app:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=FishingRegulations_Dev;User Id=sa;Password=FishingRegs2025!;TrustServerCertificate=true;
+      - ConnectionStrings__Redis=redis:6379
+      - AzureStorage__ConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+      - AzureStorage__ContainerName=fishing-regulations
+      - Seq__ServerUrl=http://seq:5341
+      - AI__MockService__BaseUrl=http://ai-mock-service:7000
+      - AI__UseAzureServices=false
+    volumes:
+      - ./src:/app/src
+      - ~/.nuget/packages:/root/.nuget/packages:ro
+    command: dotnet watch run --project /app/src/BlazorFishingRegs/BlazorFishingRegs.csproj
+
+  sql-server:
+    environment:
+      - MSSQL_DATABASE=FishingRegulations_Dev
+    volumes:
+      - ./database/dev-seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+
+  redis:
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  ai-mock-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - MockData__SampleRegulationsPath=/app/sample-data/extracted-regulations
+      - MockData__SampleLakesPath=/app/sample-data/sample-lakes.json

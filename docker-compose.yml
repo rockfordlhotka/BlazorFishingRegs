@@ -1,0 +1,155 @@
+version: '3.8'
+
+services:
+  # Main Blazor Application
+  blazor-fishing-app:
+    build:
+      context: .
+      dockerfile: src/BlazorFishingRegs/Dockerfile
+    container_name: fishing-regs-app
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:8443;http://+:8080
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=fishingdev123
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    volumes:
+      - ./data:/app/data:ro
+      - ./logs:/app/logs
+      - ~/.aspnet/https:/https:ro
+    depends_on:
+      - sql-server
+      - redis
+      - azurite
+      - seq
+    networks:
+      - fishing-regs-network
+    restart: unless-stopped
+
+  # SQL Server Database
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fishing-regs-db
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=FishingRegs2025!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - fishing-regs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P FishingRegs2025! -Q 'SELECT 1'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: fishing-regs-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - fishing-regs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Azure Storage Emulator (Azurite)
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    container_name: fishing-regs-storage
+    ports:
+      - "10000:10000"  # Blob service
+      - "10001:10001"  # Queue service
+      - "10002:10002"  # Table service
+    volumes:
+      - azurite-data:/data
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --tableHost 0.0.0.0 --location /data --debug /data/debug.log
+    networks:
+      - fishing-regs-network
+    restart: unless-stopped
+
+  # Centralized Logging (Seq)
+  seq:
+    image: datalust/seq:latest
+    container_name: fishing-regs-logs
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINUSERNAME=admin
+      - SEQ_FIRSTRUN_ADMINPASSWORD=FishingLogs2025!
+    ports:
+      - "5341:5341"  # Ingestion
+      - "8081:80"    # Web UI
+    volumes:
+      - seq-data:/data
+    networks:
+      - fishing-regs-network
+    restart: unless-stopped
+
+  # Reverse Proxy (NGINX)
+  nginx:
+    image: nginx:alpine
+    container_name: fishing-regs-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - blazor-fishing-app
+    networks:
+      - fishing-regs-network
+    restart: unless-stopped
+
+  # AI Mock Service (for development without Azure AI)
+  ai-mock-service:
+    build:
+      context: .
+      dockerfile: src/AIMockService/Dockerfile
+    container_name: fishing-regs-ai-mock
+    ports:
+      - "7000:7000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:7000
+    volumes:
+      - ./data:/app/sample-data:ro
+    networks:
+      - fishing-regs-network
+    restart: unless-stopped
+
+volumes:
+  sql-data:
+    driver: local
+  redis-data:
+    driver: local
+  azurite-data:
+    driver: local
+  seq-data:
+    driver: local
+
+networks:
+  fishing-regs-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16

@@ -2,13 +2,73 @@
 
 ## 1. System Architecture Overview
 
-This document provides detailed technical architecture for the Blazor AI Fishing Regulations application, focusing on the extraction and presentation of lake-specific fishing regulations from PDF documents.
+This document provides detailed technical architecture for the Blazor AI Fishing Regulations application, focusing on the extraction and presentation of lake-specific fishing regulations from PDF documents. The application is designed to run in Docker containers with Docker Compose for local development and container orchestration for production deployment.
 
-## 2. Application Layers
+## 2. Container Architecture
 
-### 2.1 Presentation Layer (Blazor Server)
+### 2.1 Containerization Strategy
 
-#### 2.1.1 Page Components
+The application follows a microservices-oriented containerization approach with the following containers:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Docker Compose Environment                │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│   Web App       │   Database      │     Supporting          │
+│   Container     │   Container     │     Services            │
+├─────────────────┼─────────────────┼─────────────────────────┤
+│ • Blazor Server │ • SQL Server    │ • Redis Cache           │
+│ • .NET 8        │ • Entity        │ • Azurite (Storage)     │
+│ • Kestrel       │   Framework     │ • Seq (Logging)         │
+│                 │                 │ • NGINX (Reverse Proxy) │
+└─────────────────┴─────────────────┴─────────────────────────┘
+```
+
+### 2.2 Container Services
+
+#### 2.2.1 Application Container (blazor-fishing-app)
+- **Base Image**: `mcr.microsoft.com/dotnet/aspnet:8.0`
+- **Purpose**: Main Blazor Server application
+- **Ports**: 8080 (HTTP), 8443 (HTTPS)
+- **Volumes**: Configuration, data, logs
+- **Dependencies**: SQL Server, Redis, Azurite
+
+#### 2.2.2 Database Container (sql-server)
+- **Base Image**: `mcr.microsoft.com/mssql/server:2022-latest`
+- **Purpose**: SQL Server database for lakes and regulations
+- **Ports**: 1433
+- **Volumes**: Database data persistence
+- **Environment**: Development settings
+
+#### 2.2.3 Cache Container (redis)
+- **Base Image**: `redis:7-alpine`
+- **Purpose**: Caching for regulations and lake data
+- **Ports**: 6379
+- **Volumes**: Redis data persistence
+
+#### 2.2.4 Storage Container (azurite)
+- **Base Image**: `mcr.microsoft.com/azure-storage/azurite`
+- **Purpose**: Local Azure Storage emulation for PDFs
+- **Ports**: 10000 (Blob), 10001 (Queue), 10002 (Table)
+- **Volumes**: Storage data persistence
+
+#### 2.2.5 Logging Container (seq)
+- **Base Image**: `datalust/seq:latest`
+- **Purpose**: Centralized logging and monitoring
+- **Ports**: 5341 (ingestion), 80 (UI)
+- **Volumes**: Log data persistence
+
+#### 2.2.6 Reverse Proxy Container (nginx)
+- **Base Image**: `nginx:alpine`
+- **Purpose**: Load balancing and SSL termination
+- **Ports**: 80 (HTTP), 443 (HTTPS)
+- **Configuration**: Custom nginx.conf for routing
+
+## 3. Application Layers
+
+### 3.1 Presentation Layer (Blazor Server)
+
+#### 3.1.1 Page Components
 ```
 /Pages
 ├── Index.razor              # Main dashboard with lake search
@@ -21,7 +81,7 @@ This document provides detailed technical architecture for the Blazor AI Fishing
     └── LakeManagement.razor        # Lake database management
 ```
 
-#### 2.1.2 Shared Components
+#### 3.1.2 Shared Components
 ```
 /Shared
 ├── MainLayout.razor         # Application layout
@@ -33,18 +93,29 @@ This document provides detailed technical architecture for the Blazor AI Fishing
 └── RegulationUpload.razor  # PDF upload component
 ```
 
-#### 2.1.3 Component Services
+#### 3.1.3 Component Services
 ```csharp
-// Blazor component services registration
+// Blazor component services registration in Program.cs
 builder.Services.AddScoped<ILakeSelectionService, LakeSelectionService>();
 builder.Services.AddScoped<IRegulationDisplayService, RegulationDisplayService>();
 builder.Services.AddScoped<IMapService, MapService>();
 builder.Services.AddScoped<IRegulationUploadService, RegulationUploadService>();
+
+// Container-specific configurations
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+});
+
+builder.Services.AddDbContext<FishingRegulationsDbContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 ```
 
-### 2.2 Business Logic Layer
+### 3.2 Business Logic Layer
 
-#### 2.2.1 Core Services
+#### 3.2.1 Core Services
 ```csharp
 // IRegulationProcessingService.cs
 public interface IRegulationProcessingService
@@ -69,6 +140,15 @@ public interface IRegulationSearchService
     Task<List<FishingRegulation>> SearchRegulationsAsync(RegulationSearchCriteria criteria);
     Task<List<Lake>> FindLakesBySpeciesAsync(string species);
     Task<SeasonInfo> GetFishingSeasonAsync(Guid lakeId, string species, DateTime date);
+}
+
+// Container-aware caching service
+// ICacheService.cs
+public interface ICacheService
+{
+    Task<T> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class;
+    Task SetAsync<T>(string key, T value, TimeSpan? expiry = null, CancellationToken cancellationToken = default) where T : class;
+    Task RemoveAsync(string key, CancellationToken cancellationToken = default);
 }
 ```
 
