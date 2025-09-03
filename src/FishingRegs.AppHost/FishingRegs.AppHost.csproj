@@ -10,16 +10,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting" Version="8.0.0" />
-    <PackageReference Include="Aspire.Hosting.SqlServer" Version="8.0.0" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="8.0.0" />
-    <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="8.0.0" />
-    <PackageReference Include="Aspire.Hosting.Seq" Version="8.0.0" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="8.2.2" />
+    <PackageReference Include="Aspire.Hosting" Version="8.2.2" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="8.2.2" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="8.2.2" />
+    <PackageReference Include="Aspire.Hosting.Azure.Storage" Version="8.2.2" />
+    <PackageReference Include="Aspire.Hosting.Seq" Version="8.2.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BlazorFishingRegs\BlazorFishingRegs.csproj" />
-    <ProjectReference Include="..\FishingRegs.AIMockService\FishingRegs.AIMockService.csproj" />
+    <ProjectReference Include="..\FishingRegs.ServiceDefaults\FishingRegs.ServiceDefaults.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
 </Project>

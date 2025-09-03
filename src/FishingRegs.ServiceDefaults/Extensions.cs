@@ -20,9 +20,6 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
-            http.AddStandardResilienceHandler();
-
             // Turn on service discovery by default
             http.AddServiceDiscovery();
         });
@@ -62,7 +59,8 @@ public static class Extensions
 
         if (useOtlpExporter)
         {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+            builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddOtlpExporter())
+                                               .WithMetrics(metrics => metrics.AddOtlpExporter());
         }
 
         return builder;
