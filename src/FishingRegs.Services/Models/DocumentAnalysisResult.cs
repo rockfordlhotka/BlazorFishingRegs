@@ -16,6 +16,22 @@ public class DocumentAnalysisResult
     public DateTime ProcessedAt { get; init; }
     public bool IsSuccess { get; init; }
     public string? ErrorMessage { get; init; }
+    
+    // Chunking properties for split PDF processing
+    /// <summary>
+    /// Chunk number if this result is from a split PDF (0 = not chunked or merged result)
+    /// </summary>
+    public int ChunkNumber { get; set; } = 0;
+    
+    /// <summary>
+    /// Starting page number in the original document (1-based)
+    /// </summary>
+    public int PageStart { get; set; } = 1;
+    
+    /// <summary>
+    /// Ending page number in the original document (1-based) 
+    /// </summary>
+    public int PageEnd { get; set; } = 1;
 }
 
 /// <summary>

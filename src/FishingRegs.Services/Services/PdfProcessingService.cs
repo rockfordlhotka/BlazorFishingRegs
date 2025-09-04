@@ -20,6 +20,7 @@ public class PdfProcessingService : IPdfProcessingService
 {
     private readonly IAzureDocumentIntelligenceService _documentIntelligenceService;
     private readonly IBlobStorageService _blobStorageService;
+    private readonly IPdfSplittingService _pdfSplittingService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<PdfProcessingService> _logger;
     private readonly PdfValidationOptions _validationOptions;
@@ -30,11 +31,13 @@ public class PdfProcessingService : IPdfProcessingService
     public PdfProcessingService(
         IAzureDocumentIntelligenceService documentIntelligenceService,
         IBlobStorageService blobStorageService,
+        IPdfSplittingService pdfSplittingService,
         IConfiguration configuration,
         ILogger<PdfProcessingService> logger)
     {
         _documentIntelligenceService = documentIntelligenceService;
         _blobStorageService = blobStorageService;
+        _pdfSplittingService = pdfSplittingService;
         _configuration = configuration;
         _logger = logger;
 
@@ -144,37 +147,11 @@ public class PdfProcessingService : IPdfProcessingService
             _logger.LogInformation("Uploaded {FileName} to blob storage as {BlobName}",
                 fileName, uploadResult.BlobName);
 
-            // Step 3: Analyze with Document Intelligence
-            DocumentAnalysisResult analysisResult;
+            // Step 3: Analyze with Document Intelligence using intelligent splitting
+            _logger.LogInformation("Processing document with intelligent splitting: {FileName}", fileName);
+            stream.Position = 0; // Reset stream position
             
-            try
-            {
-                // Try URL-based analysis first
-                var presignedUrl = await _blobStorageService.GeneratePresignedUrlAsync(
-                    uploadResult.BlobName, TimeSpan.FromHours(2));
-
-                analysisResult = await _documentIntelligenceService.AnalyzeDocumentAsync(
-                    presignedUrl, "prebuilt-document", cancellationToken);
-                
-                if (!analysisResult.IsSuccess)
-                {
-                    _logger.LogWarning("URL-based analysis unsuccessful for {FileName}, falling back to stream-based analysis", fileName);
-                    
-                    // Fallback to stream-based analysis
-                    stream.Position = 0; // Reset stream position
-                    analysisResult = await _documentIntelligenceService.AnalyzeDocumentAsync(
-                        stream, contentType, "prebuilt-document", cancellationToken);
-                }
-            }
-            catch (Exception urlEx)
-            {
-                _logger.LogWarning(urlEx, "URL-based analysis failed for {FileName}, falling back to stream-based analysis", fileName);
-                
-                // Fallback to stream-based analysis
-                stream.Position = 0; // Reset stream position
-                analysisResult = await _documentIntelligenceService.AnalyzeDocumentAsync(
-                    stream, contentType, "prebuilt-document", cancellationToken);
-            }
+            var analysisResult = await _pdfSplittingService.ProcessSplitPdfAsync(stream, fileName, contentType);
 
             processingDoc.AnalysisResult = analysisResult;
 
