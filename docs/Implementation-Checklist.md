@@ -47,30 +47,33 @@
 ## Phase 2: Core Data Layer (Week 2-3)
 
 ### 2.1 Database Design & Setup
-- [ ] Design database schema:
-  - [ ] `Lakes` table with geographic data
-  - [ ] `FishingRegulations` table with species restrictions
-  - [ ] `RegulationDocuments` table for PDF tracking
-  - [ ] `Species` lookup table
-  - [ ] `RegulationTypes` lookup table
-- [ ] Create Entity Framework Core models:
-  - [ ] `Lake` entity with properties and relationships
-  - [ ] `FishingRegulation` entity with validation attributes
-  - [ ] `RegulationDocument` entity for PDF metadata
-  - [ ] `Species` and `RegulationType` lookup entities
-- [ ] Configure Entity Framework DbContext
-- [ ] Create and test database migrations
-- [ ] Seed database with sample lake data
+- [X] Design database schema:
+  - [X] `water_bodies` table with geographic data (enhanced beyond basic Lakes)
+  - [X] `fishing_regulations` table with species restrictions
+  - [X] `regulation_documents` table for PDF tracking
+  - [X] `fish_species` lookup table (Species)
+  - [X] Additional tables: `states`, `counties`, `users`, audit tables
+- [X] Create Entity Framework Core models:
+  - [X] `WaterBody` entity with properties and relationships
+  - [X] `FishingRegulation` entity with validation attributes
+  - [X] `RegulationDocument` entity for PDF metadata
+  - [X] `FishSpecies` and other lookup entities
+- [X] Configure Entity Framework DbContext
+- [X] Create and test database migrations
+- [X] Seed database with sample lake data
 
 ### 2.2 Data Access Layer
-- [ ] Implement Repository pattern:
-  - [ ] `ILakeRepository` interface and implementation
-  - [ ] `IFishingRegulationRepository` interface and implementation
-  - [ ] `IRegulationDocumentRepository` interface and implementation
-- [ ] Add Entity Framework configurations and constraints
-- [ ] Implement data validation and business rules
+- [X] Implement Repository pattern:
+  - [X] `IWaterBodyRepository` interface and implementation (enhanced from ILakeRepository)
+  - [X] `IFishingRegulationRepository` interface and implementation
+  - [X] `IRegulationDocumentRepository` interface and implementation
+  - [X] `IStateRepository`, `ICountyRepository`, `IFishSpeciesRepository` interfaces and implementations
+  - [X] Base `IRepository<T>` generic interface and implementation
+  - [X] Unit of Work pattern with `IUnitOfWork` interface and implementation
+- [X] Add Entity Framework configurations and constraints
+- [X] Implement data validation and business rules
 - [ ] Create unit tests for repository layer
-- [ ] Configure Aspire service integrations for database connection
+- [X] Configure Aspire service integrations for database connection
 
 ### 2.3 Caching Layer
 - [ ] Configure Aspire Redis integration
