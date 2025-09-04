@@ -72,7 +72,7 @@
   - [X] Unit of Work pattern with `IUnitOfWork` interface and implementation
 - [X] Add Entity Framework configurations and constraints
 - [X] Implement data validation and business rules
-- [ ] Create unit tests for repository layer
+- [X] Create unit tests for repository layer
 - [X] Configure Aspire service integrations for database connection
 
 ### 2.3 Caching Layer

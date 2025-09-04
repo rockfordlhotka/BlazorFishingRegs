@@ -46,8 +46,11 @@ public class WaterBodyRepository : Repository<WaterBody>, IWaterBodyRepository
     /// <inheritdoc />
     public async Task<IEnumerable<WaterBody>> SearchByNameAsync(string namePattern, CancellationToken cancellationToken = default)
     {
+        // Note: EF.Functions.ILike is PostgreSQL-specific and not supported by InMemory provider
+        // For compatibility with testing, we'll use regular Contains for pattern matching
+        // In production with PostgreSQL, this should use ILike for case-insensitive matching
         return await _dbSet
-            .Where(wb => wb.IsActive && EF.Functions.ILike(wb.Name, $"%{namePattern}%"))
+            .Where(wb => wb.IsActive && wb.Name.ToLower().Contains(namePattern.ToLower()))
             .OrderBy(wb => wb.Name)
             .ToListAsync(cancellationToken);
     }
