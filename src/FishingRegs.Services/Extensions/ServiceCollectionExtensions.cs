@@ -6,47 +6,43 @@ using FishingRegs.Services.Services;
 namespace FishingRegs.Services.Extensions;
 
 /// <summary>
-/// Service collection extensions for registering PDF processing services
+/// Service collection extensions for registering text processing services
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers PDF processing services with the dependency injection container
+    /// Registers text processing services with the dependency injection container
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="configuration">Configuration</param>
     /// <returns>Service collection for chaining</returns>
-    public static IServiceCollection AddPdfProcessingServices(
+    public static IServiceCollection AddTextProcessingServices(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Register Azure Document Intelligence service
-        services.AddSingleton<IAzureDocumentIntelligenceService, AzureDocumentIntelligenceService>();
-
-        // Register Blob Storage service
+        // Register Blob Storage service (for archival)
         services.AddSingleton<IBlobStorageService, BlobStorageService>();
 
-        // Register PDF text extraction services
-        services.AddScoped<IPdfTextExtractionService, PdfTextExtractionService>();
+        // Register text chunking service
         services.AddScoped<ITextChunkingService, TextChunkingService>();
 
-        // Register PDF Splitting service
-        services.AddScoped<IPdfSplittingService, PdfSplittingService>();
+        // Register AI Lake Regulation Extraction service
+        services.AddScoped<IAiLakeRegulationExtractionService, AiLakeRegulationExtractionService>();
 
-        // Register PDF Processing service
-        services.AddScoped<IPdfProcessingService, PdfProcessingService>();
+        // Register Text Processing service
+        services.AddScoped<ITextProcessingService, TextProcessingService>();
 
         return services;
     }
 
     /// <summary>
-    /// Registers PDF processing services with secure configuration
+    /// Registers text processing services with secure configuration
     /// </summary>
     /// <param name="services">Service collection</param>
     /// <param name="userSecretsId">User secrets ID for development</param>
     /// <param name="keyVaultUri">Key Vault URI for production (optional)</param>
     /// <returns>Service collection for chaining</returns>
-    public static IServiceCollection AddPdfProcessingServicesWithSecureConfig(
+    public static IServiceCollection AddTextProcessingServicesWithSecureConfig(
         this IServiceCollection services,
         string userSecretsId,
         string? keyVaultUri = null)
@@ -59,10 +55,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConfiguration>(secureConfiguration);
 
         // Validate configuration
-        secureConfiguration.ValidatePdfProcessingConfiguration();
+        secureConfiguration.ValidateTextProcessingConfiguration();
 
-        // Register PDF processing services
-        return services.AddPdfProcessingServices(secureConfiguration);
+        // Register text processing services
+        return services.AddTextProcessingServices(secureConfiguration);
     }
 
     /// <summary>
@@ -70,13 +66,13 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="configuration">Configuration to validate</param>
     /// <exception cref="InvalidOperationException">Thrown when required configuration is missing</exception>
-    public static void ValidatePdfProcessingConfiguration(this IConfiguration configuration)
+    public static void ValidateTextProcessingConfiguration(this IConfiguration configuration)
     {
         var requiredSettings = new[]
         {
-            "AzureAI:DocumentIntelligence:Endpoint",
-            "AzureAI:DocumentIntelligence:ApiKey",
-            "ConnectionStrings:AzureStorage"
+            "ConnectionStrings:AzureStorage",
+            "AzureAI:OpenAI:Endpoint",
+            "AzureAI:OpenAI:ApiKey"
         };
 
         var missingSettings = requiredSettings
@@ -87,6 +83,32 @@ public static class ServiceCollectionExtensions
         {
             throw new InvalidOperationException(
                 $"Missing required configuration settings: {string.Join(", ", missingSettings)}. " +
+                "Please configure these in User Secrets (development) or Azure Key Vault (production).");
+        }
+    }
+
+    /// <summary>
+    /// Validates AI processing configuration settings
+    /// </summary>
+    /// <param name="configuration">Configuration to validate</param>
+    /// <exception cref="InvalidOperationException">Thrown when required configuration is missing</exception>
+    public static void ValidateAiProcessingConfiguration(this IConfiguration configuration)
+    {
+        var requiredSettings = new[]
+        {
+            "AzureAI:OpenAI:Endpoint",
+            "AzureAI:OpenAI:ApiKey",
+            "AzureAI:OpenAI:DeploymentName"
+        };
+
+        var missingSettings = requiredSettings
+            .Where(setting => string.IsNullOrWhiteSpace(configuration[setting]))
+            .ToList();
+
+        if (missingSettings.Any())
+        {
+            throw new InvalidOperationException(
+                $"Missing required AI configuration settings: {string.Join(", ", missingSettings)}. " +
                 "Please configure these in User Secrets (development) or Azure Key Vault (production).");
         }
     }

@@ -7,14 +7,14 @@ namespace FishingRegs.Services.Models;
 /// </summary>
 public enum DocumentProcessingStatus
 {
-    Pending,
+    Started,
     InProgress,
     Completed,
     Failed
 }
 
 /// <summary>
-/// Represents a document uploaded for processing
+/// Represents a document processed for fishing regulations
 /// </summary>
 public class ProcessingDocument
 {
@@ -24,11 +24,11 @@ public class ProcessingDocument
     public long FileSize { get; init; }
     public string BlobUrl { get; set; } = string.Empty;
     public string BlobName { get; set; } = string.Empty;
-    public DocumentProcessingStatus Status { get; set; } = DocumentProcessingStatus.Pending;
-    public DateTime UploadedAt { get; init; }
-    public DateTime? ProcessedAt { get; set; }
+    public DocumentProcessingStatus Status { get; set; } = DocumentProcessingStatus.Started;
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime LastUpdatedAt { get; set; } = DateTime.UtcNow;
     public string? ErrorMessage { get; set; }
-    public DocumentAnalysisResult? AnalysisResult { get; set; }
+    public FishingRegulationData? FishingRegulationData { get; set; }
 }
 
 /// <summary>
@@ -44,11 +44,12 @@ public class BlobUploadResult
 }
 
 /// <summary>
-/// Configuration for PDF validation
+/// Configuration for text file validation
 /// </summary>
-public class PdfValidationOptions
+public class TextValidationOptions
 {
-    public long MaxFileSizeBytes { get; init; } = 50 * 1024 * 1024; // 50MB
-    public string[] AllowedContentTypes { get; init; } = { "application/pdf" };
+    public long MaxFileSizeBytes { get; init; } = 10 * 1024 * 1024; // 10MB for text files
+    public string[] AllowedContentTypes { get; init; } = { "text/plain", "text/txt", "application/text" };
     public string[] RequiredKeywords { get; init; } = { "fishing", "regulation", "lake" };
+    public int MinimumCharacterLength { get; init; } = 100;
 }

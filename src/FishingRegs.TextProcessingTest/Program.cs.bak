@@ -1,3 +1,4 @@
+using FishingRegs.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -9,7 +10,7 @@ namespace FishingRegs.TextProcessingTest;
 /// <summary>
 /// Console application to test basic text parsing of lake regulations without AI
 /// </summary>
-public class Program
+public class BasicParsingProgram
 {
     public static async Task Main(string[] args)
     {

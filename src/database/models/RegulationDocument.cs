@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace FishingRegs.Data.Models;
 
 /// <summary>
-/// Represents an uploaded regulation document (PDF)
+/// Represents an uploaded regulation document (text file)
 /// </summary>
 [Table("regulation_documents")]
 public class RegulationDocument
