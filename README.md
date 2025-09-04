@@ -27,8 +27,10 @@ Welcome! This project uses **.NET Aspire** for orchestration and development. Fo
    ```
 
 3. **Open the Aspire Dashboard:**
-   - Automatically opens at http://localhost:15888
+   - Automatically opens at https://localhost:15888
    - View all services, logs, metrics, and health status
+
+**✅ Configuration Issue Fixed!** The AppHost now properly sets all required environment variables for the Aspire dashboard. See [Aspire-Configuration-Fix.md](docs/Aspire-Configuration-Fix.md) for details.
 
 That's it! 🎉
 
@@ -54,7 +56,7 @@ That's it! 🎉
 # Single command starts everything (15-20 seconds)
 dotnet run --project src\FishingRegs.AppHost
 
-# Aspire Dashboard shows:
+# Aspire Dashboard shows (https://localhost:15888):
 # - All service status and health
 # - Logs from all components  
 # - Metrics and distributed tracing

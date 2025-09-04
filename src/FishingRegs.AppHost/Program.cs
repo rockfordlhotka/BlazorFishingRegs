@@ -1,6 +1,14 @@
 using Aspire.Hosting;
 
+// Set required environment variables for Aspire dashboard development
+Environment.SetEnvironmentVariable("ASPNETCORE_URLS", "https://localhost:15888;http://localhost:15889");
+Environment.SetEnvironmentVariable("DOTNET_DASHBOARD_OTLP_ENDPOINT_URL", "https://localhost:16001");
+Environment.SetEnvironmentVariable("ASPIRE_ALLOW_UNSECURED_TRANSPORT", "true");
+
 var builder = DistributedApplication.CreateBuilder(args);
+
+// For development without Docker, comment out containerized services
+// Uncomment when Docker Desktop is available and you want to use containers
 
 // Add PostgreSQL (supports both local and Azure PostgreSQL)
 // For local development, uses containerized PostgreSQL
@@ -9,7 +17,7 @@ var postgres = builder.AddPostgres("postgres")
     .WithDataVolume("fishing-regs-postgres-data")
     .WithEnvironment("POSTGRES_DB", "FishingRegsDB");
 
-var database = postgres.AddDatabase("FishingRegsDB");
+// var database = postgres.AddDatabase("FishingRegsDB");
 
 // Add Redis Cache
 var redis = builder.AddRedis("redis")
