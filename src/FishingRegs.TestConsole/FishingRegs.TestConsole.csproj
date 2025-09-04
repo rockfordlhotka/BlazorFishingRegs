@@ -2,9 +2,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FishingRegs.Services\FishingRegs.Services.csproj" />
+    <ProjectReference Include="..\FishingRegs.Data\FishingRegs.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.8" />

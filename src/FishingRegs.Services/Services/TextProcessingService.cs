@@ -33,7 +33,7 @@ public class TextProcessingService : ITextProcessingService
         _logger = logger;
     }
 
-    public async Task<bool> ValidateTextAsync(string fileName, string textContent)
+    public Task<bool> ValidateTextAsync(string fileName, string textContent)
     {
         try
         {
@@ -43,7 +43,7 @@ public class TextProcessingService : ITextProcessingService
             if (string.IsNullOrWhiteSpace(textContent))
             {
                 _logger.LogWarning("Text content is empty for file: {FileName}", fileName);
-                return false;
+                return Task.FromResult(false);
             }
 
             // Check minimum length
@@ -51,7 +51,7 @@ public class TextProcessingService : ITextProcessingService
             {
                 _logger.LogWarning("Text content too short for file: {FileName} (Length: {Length})", 
                     fileName, textContent.Length);
-                return false;
+                return Task.FromResult(false);
             }
 
             // Check for suspicious content patterns
@@ -66,17 +66,17 @@ public class TextProcessingService : ITextProcessingService
                 if (System.Text.RegularExpressions.Regex.IsMatch(textContent, pattern))
                 {
                     _logger.LogWarning("Text content contains suspicious patterns for file: {FileName}", fileName);
-                    return false;
+                    return Task.FromResult(false);
                 }
             }
 
             _logger.LogInformation("Text validation successful for file: {FileName}", fileName);
-            return true;
+            return Task.FromResult(true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error validating text content for file: {FileName}", fileName);
-            return false;
+            return Task.FromResult(false);
         }
     }
 
@@ -172,11 +172,11 @@ public class TextProcessingService : ITextProcessingService
         }
     }
 
-    public async Task<ProcessingDocument?> GetProcessingStatusAsync(
+    public Task<ProcessingDocument?> GetProcessingStatusAsync(
         Guid documentId,
         CancellationToken cancellationToken = default)
     {
-        return _processingDocuments.GetValueOrDefault(documentId);
+        return Task.FromResult(_processingDocuments.GetValueOrDefault(documentId));
     }
 
     public async Task<FishingRegulationData> ExtractFishingRegulationDataAsync(

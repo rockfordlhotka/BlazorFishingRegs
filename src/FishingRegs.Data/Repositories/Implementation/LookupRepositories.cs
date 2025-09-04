@@ -107,10 +107,12 @@ public class FishSpeciesRepository : Repository<FishSpecies>, IFishSpeciesReposi
     /// <inheritdoc />
     public async Task<IEnumerable<FishSpecies>> SearchByNameAsync(string namePattern, CancellationToken cancellationToken = default)
     {
+        // Use Contains for in-memory database compatibility (case-insensitive search)
+        var pattern = namePattern.ToLowerInvariant();
         return await _dbSet
             .Where(fs => fs.IsActive && 
-                         (EF.Functions.ILike(fs.CommonName, $"%{namePattern}%") ||
-                          (fs.ScientificName != null && EF.Functions.ILike(fs.ScientificName, $"%{namePattern}%"))))
+                         (fs.CommonName.ToLower().Contains(pattern) ||
+                          (fs.ScientificName != null && fs.ScientificName.ToLower().Contains(pattern))))
             .OrderBy(fs => fs.CommonName)
             .ToListAsync(cancellationToken);
     }

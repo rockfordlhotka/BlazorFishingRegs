@@ -96,100 +96,49 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
         return result;
     }
 
-    public async Task<AiLakeRegulation?> ExtractSingleLakeRegulationAsync(string lakeText, string lakeName, string county = "")
+    public Task<AiLakeRegulation?> ExtractSingleLakeRegulationAsync(string lakeText, string lakeName, string county = "")
     {
         try
         {
-            var deploymentName = _configuration["AzureOpenAI:DeploymentName"] ?? throw new InvalidOperationException("AzureOpenAI:DeploymentName not configured");
-            
-            var chatClient = _openAIClient.GetChatClient(deploymentName);
-
-            var systemPrompt = @"You are a fishing regulation expert. Extract structured fishing regulation data from the given lake regulation text.
-
-IMPORTANT: Return ONLY valid JSON with no additional text or markdown formatting.
-
-The JSON should follow this exact structure:
-{
-  ""lakeId"": 0,
-  ""lakeName"": ""Lake Name"",
-  ""county"": ""County Name"",
-  ""regulations"": {
-    ""specialRegulations"": [
-      {
-        ""species"": ""Species Name"",
-        ""regulationType"": ""DailyLimit|PossessionLimit|SizeLimit|ProtectedSlot|CatchAndRelease|Seasonal|Combined"",
-        ""dailyLimit"": null or number,
-        ""possessionLimit"": null or number,
-        ""minimumSize"": ""size string"" or null,
-        ""maximumSize"": ""size string"" or null,
-        ""protectedSlot"": ""slot description"" or null,
-        ""seasonInfo"": ""season information"" or null,
-        ""catchAndRelease"": true or false,
-        ""notes"": ""regulation details""
-      }
-    ],
-    ""generalNotes"": ""general information about the lake"",
-    ""isExperimental"": true or false,
-    ""lastUpdated"": ""2025-09-04T00:00:00Z""
-  }
-}
-
-Parse these common regulation patterns:
-- ""daily limit X"" -> dailyLimit: X
-- ""possession limit X"" -> possessionLimit: X
-- ""all from X-Y"" must be immediately released"" -> protectedSlot
-- ""catch-and-release only"" -> catchAndRelease: true
-- ""minimum size limit X"" -> minimumSize
-- ""only 1 over X"" -> special size restrictions
-- Species names: walleye, northern pike, bass (largemouth/smallmouth), sunfish, crappie, trout, etc.
-
-Extract the county from parentheses if present in the lake name.";
-
-            var userPrompt = $@"Lake Name: {lakeName}
-County: {county}
-
-Regulation Text:
-{lakeText}
-
-Extract the fishing regulations and return as JSON:";
-
-            // TODO: Implement Azure OpenAI chat completion
-            // For now, return a mock result to allow compilation
-            _logger.LogWarning("AI extraction not yet implemented - returning mock data");
-            
-            var jsonResponse = "[]"; // Empty array for now
-            
-            // Clean up the response in case there's any markdown formatting
-            if (jsonResponse.StartsWith("```json"))
+            // TODO: Implement actual Azure OpenAI API call
+            // For now, create a mock regulation with proper structure for testing
+            var mockRegulation = new AiLakeRegulation
             {
-                jsonResponse = jsonResponse.Substring(7);
-            }
-            if (jsonResponse.EndsWith("```"))
-            {
-                jsonResponse = jsonResponse.Substring(0, jsonResponse.Length - 3);
-            }
-            jsonResponse = jsonResponse.Trim();
+                LakeId = 0,
+                LakeName = lakeName,
+                County = county,
+                Regulations = new AiRegulationDetails
+                {
+                    SpecialRegulations = new List<AiSpecialRegulation>
+                    {
+                        new AiSpecialRegulation
+                        {
+                            Species = "Northern Pike",
+                            RegulationType = AiRegulationType.SizeLimit,
+                            MinimumSize = "24 inches",
+                            Notes = "Minimum length requirement"
+                        },
+                        new AiSpecialRegulation
+                        {
+                            Species = "Walleye",
+                            RegulationType = AiRegulationType.DailyLimit,
+                            DailyLimit = 6,
+                            Notes = "Daily bag limit"
+                        }
+                    },
+                    GeneralNotes = "Standard state regulations apply unless otherwise specified",
+                    IsExperimental = true,
+                    LastUpdated = DateTime.UtcNow
+                }
+            };
 
-            var lakeRegulation = JsonSerializer.Deserialize<AiLakeRegulation>(jsonResponse, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-
-            // Set the lake name and county if they weren't properly extracted
-            if (lakeRegulation != null)
-            {
-                if (string.IsNullOrWhiteSpace(lakeRegulation.LakeName))
-                    lakeRegulation.LakeName = lakeName;
-                if (string.IsNullOrWhiteSpace(lakeRegulation.County))
-                    lakeRegulation.County = county;
-            }
-
-            return lakeRegulation;
+            _logger.LogWarning("Azure OpenAI API not yet implemented - returning mock data for lake: {LakeName}", lakeName);
+            return Task.FromResult<AiLakeRegulation?>(mockRegulation);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error extracting regulation for lake: {lakeName}");
-            return null;
+            return Task.FromResult<AiLakeRegulation?>(null);
         }
     }
 
@@ -286,19 +235,37 @@ Extract the fishing regulations and return as JSON:";
     {
         try
         {
-            // Find the start of the special regulations section
+            // Find all instances of the special regulations section header
             var startPattern = @"WATERS WITH EXPERIMENTAL AND\s*SPECIAL REGULATIONS";
-            var startMatch = Regex.Match(regulationsText, startPattern, RegexOptions.IgnoreCase);
+            var matches = Regex.Matches(regulationsText, startPattern, RegexOptions.IgnoreCase);
             
-            if (!startMatch.Success)
+            _logger.LogInformation($"Found {matches.Count} instances of special regulations section header");
+            
+            Match startMatch;
+            if (matches.Count == 0)
             {
                 // Try alternative patterns
                 startMatch = Regex.Match(regulationsText, @"Special Regulations\s*Lakes \(County\)", RegexOptions.IgnoreCase);
+                if (!startMatch.Success)
+                {
+                    _logger.LogWarning("No special regulations section found");
+                    return "";
+                }
+                _logger.LogInformation("Using alternative pattern match");
             }
-
-            if (!startMatch.Success)
+            else
             {
-                return "";
+                // Use the LAST occurrence (the actual section, not the table of contents reference)
+                startMatch = matches[matches.Count - 1];
+                _logger.LogInformation($"Using last match at index {startMatch.Index} (of {matches.Count} total matches)");
+                
+                // Log first few characters of each match for debugging
+                for (int i = 0; i < matches.Count; i++)
+                {
+                    var match = matches[i];
+                    var context = regulationsText.Substring(match.Index, Math.Min(100, regulationsText.Length - match.Index));
+                    _logger.LogDebug($"Match {i + 1} at index {match.Index}: {context.Replace('\n', ' ').Replace('\r', ' ').Substring(0, Math.Min(80, context.Length))}...");
+                }
             }
 
             var startIndex = startMatch.Index;
@@ -306,27 +273,38 @@ Extract the fishing regulations and return as JSON:";
             // Find the end of the section (next major section)
             var endPatterns = new[]
             {
-                @"BORDER WATERS",
-                @"BOWFISHING, SPEARING",
-                @"DARK HOUSE SPEARING",
-                @"ILLUSTRATED FISH"
+                @"^\s*BORDER WATERS\s*$",           // Must be on its own line  
+                @"^\s*BOWFISHING, SPEARING\s*$",    // Must be on its own line
+                @"^\s*DARK HOUSE SPEARING\s*$",     // Must be on its own line
+                @"^\s*ILLUSTRATED FISH\s*$"         // Must be on its own line
             };
 
             var endIndex = regulationsText.Length;
             foreach (var pattern in endPatterns)
             {
-                var endMatch = Regex.Match(regulationsText.Substring(startIndex), pattern, RegexOptions.IgnoreCase);
+                var endMatch = Regex.Match(regulationsText.Substring(startIndex), pattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
                 if (endMatch.Success)
                 {
                     endIndex = Math.Min(endIndex, startIndex + endMatch.Index);
+                    _logger.LogDebug($"Found end pattern '{pattern}' at relative index {endMatch.Index}");
                 }
             }
 
             var sectionText = regulationsText.Substring(startIndex, endIndex - startIndex);
+            _logger.LogInformation($"Extracted section of {sectionText.Length} characters");
             
             // Clean up the text
             sectionText = Regex.Replace(sectionText, @"Page \d+.*?888-MINNDNR", "", RegexOptions.IgnoreCase);
             sectionText = Regex.Replace(sectionText, @"\d+\s+2025 Minnesota Fishing Regulations.*?888-MINNDNR", "", RegexOptions.IgnoreCase);
+            
+            var cleanedLength = sectionText.Trim().Length;
+            _logger.LogInformation($"Cleaned section length: {cleanedLength} characters");
+            
+            if (cleanedLength > 0)
+            {
+                var preview = sectionText.Trim().Substring(0, Math.Min(200, cleanedLength));
+                _logger.LogDebug($"Section preview: {preview.Replace('\n', ' ').Replace('\r', ' ')}");
+            }
             
             return sectionText.Trim();
         }

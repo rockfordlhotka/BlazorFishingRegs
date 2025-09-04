@@ -32,6 +32,9 @@ public static class ServiceCollectionExtensions
         // Register Text Processing service
         services.AddScoped<ITextProcessingService, TextProcessingService>();
 
+        // Register Database Population service
+        services.AddScoped<IRegulationDatabasePopulationService, RegulationDatabasePopulationService>();
+
         return services;
     }
 

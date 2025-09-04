@@ -13,7 +13,7 @@ class Program
 {
     private const string UserSecretsId = "7d5de198-3095-4d2d-acda-c2631c63e9b6";
 
-    static async Task Main(string[] args)
+    static async Task MainOriginal(string[] args)
     {
         Console.WriteLine("Fishing Regulations Text Processing Test");
         Console.WriteLine("=======================================\n");
