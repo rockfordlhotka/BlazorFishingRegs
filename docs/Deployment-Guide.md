@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This deployment guide provides comprehensive instructions for deploying the Blazor AI PDF Form Population application to Azure cloud services. The guide covers development, staging, and production environments with detailed configuration for all required Azure resources.
+This deployment guide provides comprehensive instructions for deploying the Blazor AI Fishing Regulations application to Azure cloud services. The guide covers development, staging, and production environments with detailed configuration for all required Azure resources.
 
 ## 2. Prerequisites
 
@@ -800,8 +800,8 @@ scenarios:
       - post:
           url: "/api/v1/documents/upload"
           formData:
-            file: "@sample-invoice.pdf"
-            documentType: "invoice"
+            file: "@sample-regulations.txt"
+            documentType: "regulations"
 EOF
 
 # Run load test
@@ -880,4 +880,4 @@ traces
 
 ---
 
-This deployment guide provides comprehensive instructions for deploying and maintaining the Blazor AI PDF Form Population application in Azure. Follow the steps sequentially and adapt the configurations to your specific requirements.
+This deployment guide provides comprehensive instructions for deploying and maintaining the Blazor AI Fishing Regulations application in Azure. Follow the steps sequentially and adapt the configurations to your specific requirements.

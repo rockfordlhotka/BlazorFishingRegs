@@ -1,7 +1,7 @@
 # Implementation Checklist - Blazor AI Fishing Regulations
 
 ## Project Overview
-**Goal**: Build a Blazor Server application that processes fishing regulations PDFs using AI and allows users to select lakes to view specific fishing restrictions.
+**Goal**: Build a Blazor Server application that processes fishing regulations text files using AI and allows users to select lakes to view specific fishing restrictions.
 
 **Estimated Timeline**: 8-12 weeks  
 **Team Size**: 3-5 developers (Full-stack, DevOps, AI integration)
@@ -49,13 +49,13 @@
 - [X] Design database schema:
   - [X] `water_bodies` table with geographic data (enhanced beyond basic Lakes)
   - [X] `fishing_regulations` table with species restrictions
-  - [X] `regulation_documents` table for PDF tracking
+  - [X] `regulation_documents` table for text file tracking
   - [X] `fish_species` lookup table (Species)
   - [X] Additional tables: `states`, `counties`, `users`, audit tables
 - [X] Create Entity Framework Core models:
   - [X] `WaterBody` entity with properties and relationships
   - [X] `FishingRegulation` entity with validation attributes
-  - [X] `RegulationDocument` entity for PDF metadata
+  - [X] `RegulationDocument` entity for text file metadata
   - [X] `FishSpecies` and other lookup entities
 - [X] Configure Entity Framework DbContext
 - [X] Create and test database migrations
@@ -78,18 +78,18 @@
 
 ## Phase 3: AI Integration Services (Week 3-5)
 
-### 3.1 PDF Processing Service
-- [X] Implement Azure AI Document Intelligence integration:
-  - [X] PDF upload and validation service
-  - [X] Document analysis API calls
-  - [X] Text extraction and structure recognition
+### 3.1 Text File Processing Service
+- [X] Implement text file ingestion and processing:
+  - [X] Text file upload and validation service
+  - [X] File format validation and parsing
+  - [X] Content extraction and structure recognition
   - [X] Secure credential management (User Secrets + Azure Key Vault)
-- [X] Create PDF processing pipeline:
+- [X] Create text processing pipeline:
   - [X] File format validation
   - [X] Content extraction workflows
   - [X] Error handling and retry logic
-  - [X] Azure Blob Storage integration
-- [X] Test with sample fishing regulations PDFs
+  - [X] Azure Blob Storage integration (optional)
+- [X] Test with sample fishing regulations text files
 - [X] Create comprehensive secure configuration documentation
 
 ### 3.2 AI Data Enhancement Service
@@ -107,7 +107,7 @@
 ### 3.3 Background Processing
 - [ ] Set up background job processing:
   - [ ] Configure Hangfire or similar job scheduler
-  - [ ] Implement PDF processing job queue
+  - [ ] Implement text file processing job queue
   - [ ] Add job monitoring and retry policies
 - [ ] Create notification system for processing completion
 - [ ] Implement progress tracking for long-running operations
@@ -137,7 +137,7 @@
   - [ ] Historical regulation tracking
 
 ### 4.3 Document Management Service
-- [ ] Implement PDF document management:
+- [ ] Implement text file document management:
   - [ ] Upload, storage, and retrieval
   - [ ] Document versioning and history
   - [ ] Metadata extraction and indexing
@@ -175,7 +175,7 @@
 
 ### 5.3 Administrative Interfaces
 - [ ] **Admin Dashboard**:
-  - [ ] PDF upload interface with drag-and-drop
+  - [ ] Text file upload interface with drag-and-drop
   - [ ] Processing status monitoring
   - [ ] System health and usage metrics
 - [ ] **Data Management**:
@@ -205,9 +205,9 @@
 
 ### 6.2 Administrative API Endpoints
 - [ ] **Document Management APIs**:
-  - [ ] `POST /api/v1/admin/documents/upload` - Upload PDF
+  - [ ] `POST /api/v1/admin/documents/upload` - Upload text file
   - [ ] `GET /api/v1/admin/documents/{id}/status` - Processing status
-  - [ ] `POST /api/v1/admin/documents/{id}/reprocess` - Reprocess PDF
+  - [ ] `POST /api/v1/admin/documents/{id}/reprocess` - Reprocess text file
 - [ ] **Data Management APIs**:
   - [ ] CRUD endpoints for lakes, regulations, species
   - [ ] Bulk import/export endpoints
@@ -272,7 +272,7 @@
 - [ ] Create test scenarios for key user journeys:
   - [ ] Lake search and selection flow
   - [ ] Regulation viewing and filtering
-  - [ ] PDF upload and processing (admin)
+  - [ ] Text file upload and processing (admin)
 - [ ] Perform usability testing with real users
 - [ ] Test accessibility compliance
 - [ ] Validate mobile responsiveness
@@ -285,7 +285,7 @@
 - [ ] Conduct load testing:
   - [ ] API endpoint performance under load
   - [ ] Database query optimization
-- [ ] Test PDF processing performance with large files
+- [ ] Test text file processing performance with large files
 - [ ] Validate memory usage and resource consumption
 
 ### 9.2 Optimization
@@ -317,7 +317,7 @@
 ### 10.2 Documentation
 - [ ] Create user documentation:
   - [ ] User guide for lake selection and regulation viewing
-  - [ ] Administrator guide for PDF management
+  - [ ] Administrator guide for text file management
   - [ ] FAQ and troubleshooting guide
 - [ ] Update technical documentation:
   - [ ] API documentation with examples
@@ -346,8 +346,8 @@
 ### Project Success Criteria
 - [ ] Users can successfully search and select lakes
 - [ ] Regulations are accurately displayed for selected lakes
-- [ ] Administrators can upload and process regulation PDFs
-- [ ] System processes PDFs with >90% accuracy
+- [ ] Administrators can upload and process regulation text files
+- [ ] System processes text files with >90% accuracy
 - [ ] Application loads in <3 seconds
 - [ ] API responses in <500ms for standard queries
 - [ ] 99.5% uptime in production
@@ -359,7 +359,7 @@
 
 ### Technical Risks
 - [ ] **AI Accuracy**: Create fallback manual review process
-- [ ] **PDF Complexity**: Implement multiple parsing strategies
+- [ ] **Text File Complexity**: Implement multiple parsing strategies
 - [ ] **Performance**: Early load testing and optimization
 - [ ] **Third-party Dependencies**: Have backup service options
 
@@ -403,6 +403,6 @@
 
 **Key Dependencies**:
 - Azure AI services availability and quotas
-- Sample fishing regulations PDF data
+- Sample fishing regulations text file data
 - Stakeholder availability for reviews and testing
 - Production infrastructure provisioning

@@ -2,7 +2,7 @@
 
 ## 1. System Architecture Overview
 
-This document provides detailed technical architecture for the Blazor AI Fishing Regulations application, focusing on the extraction and presentation of lake-specific fishing regulations from PDF documents. The application is designed to run in Docker containers with Docker Compose for local development and container orchestration for production deployment.
+This document provides detailed technical architecture for the Blazor AI Fishing Regulations application, focusing on the extraction and presentation of lake-specific fishing regulations from text documents. The application is designed to run in Docker containers with Docker Compose for local development and container orchestration for production deployment.
 
 ## 2. Container Architecture
 
@@ -42,7 +42,7 @@ The application follows a microservices-oriented containerization approach with 
 
 #### 2.2.3 Storage Container (azurite)
 - **Base Image**: `mcr.microsoft.com/azure-storage/azurite`
-- **Purpose**: Local Azure Storage emulation for PDFs
+- **Purpose**: Local Azure Storage emulation for documents (optional)
 - **Ports**: 10000 (Blob), 10001 (Queue), 10002 (Table)
 - **Volumes**: Storage data persistence
 
@@ -68,8 +68,8 @@ The application follows a microservices-oriented containerization approach with 
 ├── Index.razor              # Main dashboard with lake search
 ├── LakeSelection.razor      # Interactive lake selection interface
 ├── RegulationView.razor     # Lake-specific regulation display  
-├── Upload.razor             # Regulation PDF upload (admin)
-├── Processing.razor         # PDF processing status
+├── Upload.razor             # Regulation text file upload (admin)
+├── Processing.razor         # Text file processing status
 └── Admin/
     ├── RegulationManagement.razor  # Regulation oversight
     └── LakeManagement.razor        # Lake database management
@@ -84,7 +84,7 @@ The application follows a microservices-oriented containerization approach with 
 ├── RegulationCard.razor    # Individual regulation display
 ├── SeasonCalendar.razor    # Fishing season visualization
 ├── SpeciesFilter.razor     # Fish species filtering
-└── RegulationUpload.razor  # PDF upload component
+└── RegulationUpload.razor  # Text file upload component
 ```
 
 #### 3.1.3 Component Services
@@ -778,4 +778,4 @@ public class DocumentsController : ControllerBase
 
 ---
 
-This technical architecture document provides the detailed implementation guidance needed to build the Blazor AI PDF Form Population application according to the specifications outlined in the main document.
+This technical architecture document provides the detailed implementation guidance needed to build the Blazor AI Fishing Regulations application according to the specifications outlined in the main document.

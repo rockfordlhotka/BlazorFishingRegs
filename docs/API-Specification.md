@@ -481,7 +481,7 @@ POST /api/v1/admin/regulations/upload
 Content-Type: multipart/form-data
 Authorization: Bearer {token}
 
-file: {fishing_regulations_pdf}
+file: {fishing_regulations_text}
 regulationYear: "2025"
 issuingAuthority: "Minnesota DNR"
 effectiveDate: "2025-01-01"
@@ -493,8 +493,8 @@ effectiveDate: "2025-01-01"
   "success": true,
   "data": {
     "documentId": "550e8400-e29b-41d4-a716-446655440000",
-    "fileName": "mn-fishing-regs-2025.pdf",
-    "fileSize": 5242880,
+    "fileName": "mn-fishing-regs-2025.txt",
+    "fileSize": 1024000,
     "status": "uploaded",
     "regulationYear": "2025",
     "issuingAuthority": "Minnesota DNR",
@@ -765,7 +765,7 @@ A Postman collection is available with pre-configured requests for all endpoints
 ```json
 {
   "info": {
-    "name": "Blazor AI PDF API",
+    "name": "Blazor AI Fishing Regulations API",
     "description": "Complete API collection for testing",
     "version": "1.0.0"
   },
@@ -821,7 +821,7 @@ public class BlazorAIApiClient
         using var content = new MultipartFormDataContent();
         using var fileContent = new StreamContent(fileStream);
         
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
         content.Add(fileContent, "file", fileName);
         content.Add(new StringContent(documentType), "documentType");
 
@@ -836,4 +836,4 @@ public class BlazorAIApiClient
 
 ---
 
-This API specification provides comprehensive documentation for integrating with the Blazor AI PDF Form Population application. All endpoints support the standard HTTP methods and return consistent JSON responses for easy integration.
+This API specification provides comprehensive documentation for integrating with the Blazor AI Fishing Regulations application. All endpoints support the standard HTTP methods and return consistent JSON responses for easy integration.

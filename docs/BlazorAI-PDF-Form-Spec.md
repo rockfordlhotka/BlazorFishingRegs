@@ -2,19 +2,19 @@
 
 ## 1. Executive Summary
 
-This specification outlines the development of a Blazor Server application that leverages Microsoft AI services to extract fishing regulations from PDF documents and present them through an intuitive lake selection interface. The application will process fishing regulations PDFs using AI-powered document intelligence services and allow users to select specific lakes to view their applicable fishing restrictions, seasons, and requirements.
+This specification outlines the development of a Blazor Server application that leverages Microsoft AI services to extract fishing regulations from text documents and present them through an intuitive lake selection interface. The application will process fishing regulations text files using AI-powered natural language processing services and allow users to select specific lakes to view their applicable fishing restrictions, seasons, and requirements.
 
 ## 2. Project Overview
 
 ### 2.1 Objectives
 - Create a Blazor Server application for fishing regulations management
-- Integrate Microsoft AI services for intelligent PDF data extraction
+- Integrate Microsoft AI services for intelligent text data extraction
 - Provide lake-based fishing regulation lookup functionality
 - Ensure accurate and up-to-date fishing regulation information
 - Deliver a responsive and user-friendly interface for anglers
 
 ### 2.2 Key Features
-- Fishing regulations PDF upload and processing
+- Fishing regulations text file upload and processing
 - AI-powered extraction of lake-specific regulations
 - Interactive lake selection interface
 - Comprehensive regulation display (seasons, limits, restrictions)
@@ -26,9 +26,8 @@ This specification outlines the development of a Blazor Server application that 
 ### 3.1 Core Technologies
 - **Framework**: .NET 8 Blazor Server
 - **UI Components**: Microsoft Fluent UI Blazor Components
-- **AI Services**: Azure AI Document Intelligence (formerly Form Recognizer)
-- **Secondary AI**: Azure OpenAI Service for natural language processing
-- **Storage**: Azure Blob Storage for document storage
+- **AI Services**: Azure OpenAI Service for natural language processing
+- **Storage**: Azure Blob Storage for document storage (optional)
 - **Database**: SQL Server with Entity Framework Core
 - **Authentication**: Azure Active Directory B2C
 
@@ -61,37 +60,37 @@ This specification outlines the development of a Blazor Server application that 
 - **Lake Selection Component**: Interactive map and list-based lake selection
 - **Regulation Display Component**: Comprehensive regulation presentation
 - **Search Component**: Lake and regulation search functionality  
-- **Upload Component**: Handles fishing regulations PDF uploads
-- **Admin Components**: Regulation management and PDF processing status
+- **Upload Component**: Handles fishing regulations text file uploads
+- **Admin Components**: Regulation management and text file processing status
 
 #### 4.2.2 Business Logic Layer
 - **Regulation Processing Service**: Orchestrates the AI extraction workflow for fishing data
 - **Lake Management Service**: Manages lake data and geographic information
 - **Regulation Search Service**: Handles search and filtering of regulations
-- **PDF Processing Service**: Manages fishing regulations document processing
+- **Text File Processing Service**: Manages fishing regulations document processing
 
 #### 4.2.3 Data Access Layer
 - **Lake Repository**: CRUD operations for lake information
 - **Regulation Repository**: Manages fishing regulation data
-- **PDF Document Repository**: Tracks processed regulation documents
+- **Document Repository**: Tracks processed regulation documents
 - **Audit Repository**: Tracks regulation updates and changes
 
 #### 4.2.4 Integration Layer
-- **Azure AI Document Intelligence Client**: Handles PDF analysis and regulation extraction
-- **Azure OpenAI Client**: Enhances regulation data interpretation and standardization
-- **Blob Storage Client**: Manages regulation PDF storage
+- **Azure OpenAI Client**: Handles text analysis and regulation extraction
+- **Text Processing Service**: Enhances regulation data interpretation and standardization
+- **Blob Storage Client**: Manages regulation document storage (optional)
 
 ## 5. Detailed Feature Specifications
 
-### 5.1 PDF Upload and Processing
+### 5.1 Text File Upload and Processing
 
 #### 5.1.1 File Upload Requirements
-- **Supported Formats**: PDF files containing fishing regulations
+- **Supported Formats**: Text files (.txt, .csv) containing fishing regulations
 - **File Size Limit**: Maximum 50MB per file
 - **Content Requirements**: 
   - Must contain lake-specific fishing information
-  - Should include regulation text and tabular data
-  - May contain maps and diagrams
+  - Should include regulation text and structured data
+  - May contain formatted tables and lists
 - **Validation Rules**:
   - File format validation
   - Size limit enforcement
@@ -100,9 +99,9 @@ This specification outlines the development of a Blazor Server application that 
 #### 5.1.2 Processing Workflow
 ```mermaid
 graph TD
-    A[Regulations PDF Upload] --> B[Content Validation]
-    B --> C[Store in Blob Storage]
-    C --> D[AI Document Analysis]
+    A[Regulations Text File Upload] --> B[Content Validation]
+    B --> C[Store in File System]
+    C --> D[AI Text Analysis]
     D --> E[Extract Lake Information]
     E --> F[Extract Fishing Regulations]
     F --> G[Structure Regulation Data]
@@ -221,8 +220,8 @@ graph TD
 4. User can filter by species or regulation type
 5. User can save lake to favorites for quick access
 
-#### 6.2.2 Regulation PDF Processing Workflow (Admin)
-1. Administrator uploads new fishing regulations PDF
+#### 6.2.2 Regulation Text File Processing Workflow (Admin)
+1. Administrator uploads new fishing regulations text file
 2. System validates document content
 3. AI extracts lake and regulation data
 4. Administrator reviews and validates extracted data
@@ -349,9 +348,9 @@ public class RegulationDocument
 - Set up Azure resources (Storage, AI services)
 
 #### Phase 2: Core Functionality (Weeks 3-5)
-- Implement PDF upload functionality
-- Integrate Azure AI Document Intelligence
-- Create basic form generation system
+- Implement text file upload functionality
+- Integrate Azure OpenAI for text processing
+- Create basic regulation extraction system
 - Develop data extraction and mapping logic
 
 #### Phase 3: Enhanced Features (Weeks 6-8)
@@ -409,7 +408,7 @@ public class RegulationDocument
 
 ## 13. Conclusion
 
-This specification provides a comprehensive roadmap for developing a Blazor Server application that leverages Microsoft AI services for intelligent PDF document processing and form population. The solution addresses key business needs for automated data extraction while maintaining high standards for security, performance, and user experience.
+This specification provides a comprehensive roadmap for developing a Blazor Server application that leverages Microsoft AI services for intelligent text document processing and regulation extraction. The solution addresses key business needs for automated data extraction while maintaining high standards for security, performance, and user experience.
 
 The phased implementation approach ensures manageable development cycles with incremental value delivery. The technology stack leverages Microsoft's ecosystem for seamless integration and optimal performance within Azure environments.
 

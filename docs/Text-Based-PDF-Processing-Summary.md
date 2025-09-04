@@ -1,13 +1,54 @@
-# Text-Based PDF Processing Implementation Summary
+# Text File Processing Implementation Summary
 
 ## Overview
-Successfully implemented a comprehensive text-based PDF processing strategy for FishingRegs.Services to handle secured/encrypted PDFs that cannot be processed by binary PDF manipulation libraries.
+**NOTE: This document describes a previous PDF-based implementation that has been replaced with direct text file ingestion. The application now processes text files directly instead of extracting text from PDFs.**
 
-## Architecture
+## Current Implementation
+The application now directly processes text files (.txt, .csv) containing fishing regulations, eliminating the need for PDF text extraction. This approach provides:
 
-### Core Services Implemented
+- Simplified processing pipeline
+- More reliable text parsing
+- Reduced dependency on external tools
+- Better error handling and validation
 
-1. **PdfTextExtractionService** (`IPdfTextExtractionService`)
+## Architecture (Current)
+
+### Core Services
+
+1. **TextFileIngestionService** (`ITextFileIngestionService`)
+   - Direct text file reading and validation
+   - Support for multiple text formats (.txt, .csv)
+   - Content validation and structure detection
+   - Comprehensive error handling and logging
+
+2. **TextChunkingService** (`ITextChunkingService`)
+   - Intelligent text chunking with overlap for context preservation
+   - Boundary-aware chunking (sentences, paragraphs)
+   - Fishing content detection and filtering
+   - Text chunk validation and quality scoring
+
+## Current Processing Workflow
+
+1. **Text File Upload**: Direct upload of text files containing fishing regulations
+2. **File Validation**: Validate file format, size, and content structure
+3. **Content Parsing**: Parse text content using natural language processing
+4. **Data Extraction**: Extract lake information and fishing regulations using AI
+5. **Data Structuring**: Structure extracted data into database entities
+6. **Database Storage**: Store processed regulations in the database
+7. **Quality Assurance**: Validate and review extracted data
+
+## Current Processing Chain
+Text File Ingestion → Content Validation → AI Processing → Data Extraction → Database Storage
+
+---
+
+## Legacy PDF Processing Information (Archived)
+
+The following information describes the previous PDF-based implementation and is kept for reference:
+
+### Previous PDF-based Services (No longer used)
+
+1. **PdfTextExtractionService** (`IPdfTextExtractionService`) - DEPRECATED
    - Primary: `pdftotext` CLI integration (Linux/poppler-utils)
    - Fallback: PdfSharp library extraction
    - Automatic detection of available extraction methods
