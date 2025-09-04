@@ -26,6 +26,10 @@ public static class ServiceCollectionExtensions
         // Register Blob Storage service
         services.AddSingleton<IBlobStorageService, BlobStorageService>();
 
+        // Register PDF text extraction services
+        services.AddScoped<IPdfTextExtractionService, PdfTextExtractionService>();
+        services.AddScoped<ITextChunkingService, TextChunkingService>();
+
         // Register PDF Splitting service
         services.AddScoped<IPdfSplittingService, PdfSplittingService>();
 
