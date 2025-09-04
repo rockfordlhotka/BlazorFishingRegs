@@ -75,11 +75,8 @@ Tasks where AI can provide significant assistance but human oversight and decisi
 
 | Task | Category | Notes |
 |------|----------|--------|
-| Configure Redis connection and settings | 🤖 **AI Agent** | Standard Redis configuration |
-| Implement caching service interface and Redis implementation | 🤖 **AI Agent** | Standard caching patterns |
-| Add caching to lake and regulation queries | 🤖 **AI Agent** | Standard cache-aside pattern |
-| Implement cache invalidation strategies | 🤝 **AI-Assisted** | AI implements patterns, human defines strategies |
-| Test cache performance and reliability | 🤝 **AI-Assisted** | AI creates tests, human validates performance |
+| Create unit tests for repository layer | 🤖 **AI Agent** | Standard testing patterns |
+| Configure Aspire service integrations for database connection | 🤖 **AI Agent** | Standard Aspire configuration |
 
 ---
 

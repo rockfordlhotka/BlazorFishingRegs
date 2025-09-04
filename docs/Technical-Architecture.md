@@ -17,8 +17,8 @@ The application follows a microservices-oriented containerization approach with 
 │   Web App       │   Database      │     Supporting          │
 │   Container     │   Container     │     Services            │
 ├─────────────────┼─────────────────┼─────────────────────────┤
-│ • Blazor Server │ • SQL Server    │ • Redis Cache           │
-│ • .NET 8        │ • Entity        │ • Azurite (Storage)     │
+│ • Blazor Server │ • SQL Server    │ • Azurite (Storage)     │
+│ • .NET 8        │ • Entity        │ • Seq (Logging)         │
 │ • Kestrel       │   Framework     │ • Seq (Logging)         │
 │                 │                 │ • NGINX (Reverse Proxy) │
 └─────────────────┴─────────────────┴─────────────────────────┘
@@ -31,7 +31,7 @@ The application follows a microservices-oriented containerization approach with 
 - **Purpose**: Main Blazor Server application
 - **Ports**: 8080 (HTTP), 8443 (HTTPS)
 - **Volumes**: Configuration, data, logs
-- **Dependencies**: SQL Server, Redis, Azurite
+- **Dependencies**: SQL Server, Azurite
 
 #### 2.2.2 Database Container (sql-server)
 - **Base Image**: `mcr.microsoft.com/mssql/server:2022-latest`
@@ -40,25 +40,19 @@ The application follows a microservices-oriented containerization approach with 
 - **Volumes**: Database data persistence
 - **Environment**: Development settings
 
-#### 2.2.3 Cache Container (redis)
-- **Base Image**: `redis:7-alpine`
-- **Purpose**: Caching for regulations and lake data
-- **Ports**: 6379
-- **Volumes**: Redis data persistence
-
-#### 2.2.4 Storage Container (azurite)
+#### 2.2.3 Storage Container (azurite)
 - **Base Image**: `mcr.microsoft.com/azure-storage/azurite`
 - **Purpose**: Local Azure Storage emulation for PDFs
 - **Ports**: 10000 (Blob), 10001 (Queue), 10002 (Table)
 - **Volumes**: Storage data persistence
 
-#### 2.2.5 Logging Container (seq)
+#### 2.2.4 Logging Container (seq)
 - **Base Image**: `datalust/seq:latest`
 - **Purpose**: Centralized logging and monitoring
 - **Ports**: 5341 (ingestion), 80 (UI)
 - **Volumes**: Log data persistence
 
-#### 2.2.6 Reverse Proxy Container (nginx)
+#### 2.2.5 Reverse Proxy Container (nginx)
 - **Base Image**: `nginx:alpine`
 - **Purpose**: Load balancing and SSL termination
 - **Ports**: 80 (HTTP), 443 (HTTPS)
@@ -102,11 +96,6 @@ builder.Services.AddScoped<IMapService, MapService>();
 builder.Services.AddScoped<IRegulationUploadService, RegulationUploadService>();
 
 // Container-specific configurations
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetConnectionString("Redis");
-});
-
 builder.Services.AddDbContext<FishingRegulationsDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -140,15 +129,6 @@ public interface IRegulationSearchService
     Task<List<FishingRegulation>> SearchRegulationsAsync(RegulationSearchCriteria criteria);
     Task<List<Lake>> FindLakesBySpeciesAsync(string species);
     Task<SeasonInfo> GetFishingSeasonAsync(Guid lakeId, string species, DateTime date);
-}
-
-// Container-aware caching service
-// ICacheService.cs
-public interface ICacheService
-{
-    Task<T> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class;
-    Task SetAsync<T>(string key, T value, TimeSpan? expiry = null, CancellationToken cancellationToken = default) where T : class;
-    Task RemoveAsync(string key, CancellationToken cancellationToken = default);
 }
 ```
 
@@ -620,54 +600,9 @@ public class DataProtectionService : IDataProtectionService
 
 ## 6. Performance Optimization
 
-### 6.1 Caching Strategy
+### 6.2 Database Optimization
 
-#### 6.1.1 Distributed Caching Implementation
-```csharp
-// ICacheService.cs
-public interface ICacheService
-{
-    Task<T> GetAsync<T>(string key) where T : class;
-    Task SetAsync<T>(string key, T value, TimeSpan? expiry = null) where T : class;
-    Task RemoveAsync(string key);
-    Task RemovePatternAsync(string pattern);
-}
-
-// RedisCacheService.cs
-public class RedisCacheService : ICacheService
-{
-    private readonly IDistributedCache _cache;
-    private readonly ILogger<RedisCacheService> _logger;
-
-    public async Task<T> GetAsync<T>(string key) where T : class
-    {
-        try
-        {
-            var cachedValue = await _cache.GetStringAsync(key);
-            return cachedValue == null ? null : JsonSerializer.Deserialize<T>(cachedValue);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving cached value for key: {Key}", key);
-            return null;
-        }
-    }
-
-    public async Task SetAsync<T>(string key, T value, TimeSpan? expiry = null) where T : class
-    {
-        var options = new DistributedCacheEntryOptions();
-        if (expiry.HasValue)
-            options.SetAbsoluteExpiration(expiry.Value);
-
-        var serializedValue = JsonSerializer.Serialize(value);
-        await _cache.SetStringAsync(key, serializedValue, options);
-    }
-}
-```
-
-### 6.2 Background Processing
-
-#### 6.2.1 Hosted Service for Document Processing
+#### 6.1.1 Hosted Service for Document Processing
 ```csharp
 // DocumentProcessingHostedService.cs
 public class DocumentProcessingHostedService : BackgroundService

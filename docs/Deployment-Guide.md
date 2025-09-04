@@ -354,8 +354,6 @@ az webapp config connection-string set \
     "DataRetentionDays": 2555
   },
   "Performance": {
-    "EnableCaching": true,
-    "CacheExpirationMinutes": 60,
     "MaxConcurrentProcessing": 10
   }
 }

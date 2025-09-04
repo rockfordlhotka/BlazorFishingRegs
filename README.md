@@ -30,6 +30,10 @@ Welcome! This project uses **.NET Aspire** for orchestration and development. Fo
    - Automatically opens at https://localhost:15888
    - View all services, logs, metrics, and health status
 
+4. **Configure Azure services (for PDF processing):**
+   - See [Secure Configuration Guide](docs/Secure-Configuration-Guide.md) for setting up Azure credentials
+   - Uses User Secrets for development, Azure Key Vault for production
+
 **✅ Configuration Issue Fixed!** The AppHost now properly sets all required environment variables for the Aspire dashboard. See [Aspire-Configuration-Fix.md](docs/Aspire-Configuration-Fix.md) for details.
 
 That's it! 🎉

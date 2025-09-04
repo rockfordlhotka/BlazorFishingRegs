@@ -19,10 +19,6 @@ var postgres = builder.AddPostgres("postgres")
 
 // var database = postgres.AddDatabase("FishingRegsDB");
 
-// Add Redis Cache
-var redis = builder.AddRedis("redis")
-    .WithDataVolume("fishing-regs-redis-data");
-
 // Add Azure Storage (using Azurite for local development)
 var storage = builder.AddAzureStorage("storage");
 var blobs = storage.AddBlobs("blobs");
@@ -38,7 +34,6 @@ var seq = builder.AddSeq("seq")
 // TODO: Add main Blazor application when project is created
 // var blazorApp = builder.AddProject<Projects.BlazorFishingRegs>("blazor-app")
 //     .WithReference(database)
-//     .WithReference(redis)
 //     .WithReference(blobs)
 //     .WithReference(aiMockService)
 //     .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"))

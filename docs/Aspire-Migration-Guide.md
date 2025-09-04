@@ -49,7 +49,6 @@ dotnet run --project src/FishingRegs.AppHost
 - Azure Document Intelligence  
 - Azure Storage
 - Azure SQL Database
-- Azure Cache for Redis
 
 **Aspire Benefits:**
 ```csharp
@@ -81,7 +80,6 @@ builder.AddAzureStorage("storage")
 ```yaml
 # Hard-coded service names
 AZURE_STORAGE_CONNECTION_STRING=...
-REDIS_CONNECTION_STRING=redis:6379
 SQL_CONNECTION_STRING=Server=sql-server,1433;...
 ```
 
@@ -90,7 +88,6 @@ SQL_CONNECTION_STRING=Server=sql-server,1433;...
 // Automatic service discovery
 builder.AddProject<Projects.BlazorFishingRegs>("blazor-app")
     .WithReference(database)      // Auto-injected connection
-    .WithReference(redis)         // Auto-discovered
     .WithReference(storage);      // Built-in configuration
 ```
 

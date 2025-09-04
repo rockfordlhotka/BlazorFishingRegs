@@ -173,7 +173,6 @@ reviewed_at TIMESTAMPTZ
 - **Partitioning by year** for fishing_regulations table
 - **Read replicas** for high-traffic read operations
 - **Connection pooling** with PgBouncer
-- **Caching layer** with Redis for frequently accessed data
 
 ## ✅ **Ready for Implementation**
 

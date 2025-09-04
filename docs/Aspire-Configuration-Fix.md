@@ -93,7 +93,6 @@ After the fix, all services start successfully:
 ```
 ✅ Aspire Dashboard    - https://localhost:15888
 ✅ PostgreSQL          - Ready (containerized)
-✅ Redis Cache          - Ready (containerized)  
 ✅ Seq Logging          - Ready (containerized)
 ✅ Azure Storage        - Ready (Azurite emulator)
 ```

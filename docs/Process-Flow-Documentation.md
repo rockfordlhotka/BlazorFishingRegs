@@ -58,7 +58,6 @@ sequenceDiagram
     participant AI as AI Services
     participant OpenAI as Azure OpenAI
     participant DB as Database
-    participant Cache as Redis Cache
 
     API->>AI: Analyze PDF document
     AI->>AI: Extract text and table structures
@@ -139,16 +138,12 @@ sequenceDiagram
     participant User as Angler
     participant UI as Blazor UI
     participant API as Web API
-    participant Cache as Redis Cache
     participant DB as Database
 
     User->>UI: Open fishing regulations app
     UI->>API: GET /api/v1/lakes/featured
-    API->>Cache: Check for cached featured lakes
-    Cache->>API: Return cached data (if available)
-    API->>DB: Query featured lakes (if not cached)
+    API->>DB: Query featured lakes
     DB->>API: Return lake list
-    API->>Cache: Cache lake data
     API->>UI: Return featured lakes
     UI->>User: Display dashboard with lake options
 
@@ -205,22 +200,16 @@ flowchart LR
     B --> C[Azure OpenAI Enhancement]
     C --> D[Structured Regulation Data]
     D --> E[SQL Database]
-    E --> F[Redis Cache]
-    F --> G[Blazor UI Components]
-    G --> H[User Interface]
+    E --> F[Blazor UI Components]
+    F --> G[User Interface]
     
-    I[User Lake Selection] --> J[API Query]
-    J --> K{Data in Cache?}
-    K -->|Yes| L[Return Cached Data]
-    K -->|No| M[Query Database]
-    M --> N[Cache Results]
-    N --> L
-    L --> O[Regulation Display]
+    H[User Lake Selection] --> I[API Query]
+    I --> J[Query Database]
+    J --> K[Regulation Display]
     
     style A fill:#ffecb3
-    style H fill:#c8e6c9
+    style G fill:#c8e6c9
     style E fill:#e1f5fe
-    style F fill:#f3e5f5
 ```
 
 ## Integration Points and Dependencies
@@ -240,14 +229,12 @@ graph TD
     C --> J[Lake Name Standardization]
     D --> K[PDF Document Storage]
     E --> L[Structured Data Storage]
-    F --> M[Performance Caching]
     
     style A fill:#e3f2fd
     style B fill:#fff3e0
     style C fill:#fff3e0
     style D fill:#e8f5e8
     style E fill:#e8f5e8
-    style F fill:#f3e5f5
 ```
 
 ## Error Handling and Recovery
@@ -290,24 +277,17 @@ flowchart TD
 flowchart TD
     A[User Request] --> B{Data in L1 Cache?}
     B -->|Yes| C[Return from Memory Cache]
-    B -->|No| D{Data in L2 Cache?}
-    D -->|Yes| E[Return from Redis Cache]
-    D -->|No| F[Query Database]
+    B -->|No| C[Query Database]
     
-    F --> G[Store in Redis Cache]
-    G --> H[Store in Memory Cache]
-    H --> I[Return to User]
-    E --> H
-    C --> I
+    C --> D[Return to User]
     
-    J[Cache Invalidation] --> K[Clear Memory Cache]
-    K --> L[Clear Redis Cache]
-    L --> M[Next request hits database]
+    E[Data Updates] --> F[Invalidate Cached Data]
+    F --> G[Next request hits database]
     
     style A fill:#e3f2fd
-    style I fill:#c8e6c9
-    style F fill:#fff3e0
-    style J fill:#ffecb3
+    style D fill:#c8e6c9
+    style C fill:#fff3e0
+    style E fill:#ffecb3
 ```
 
 ## Monitoring and Metrics
@@ -320,7 +300,6 @@ graph TD
     C[Data Extraction] --> C1[Track extraction accuracy]
     D[Database Updates] --> D1[Monitor update performance]
     E[User Queries] --> E1[Track response times]
-    F[Cache Performance] --> F1[Monitor hit rates]
     
     A1 --> G[Application Insights]
     B1 --> G
