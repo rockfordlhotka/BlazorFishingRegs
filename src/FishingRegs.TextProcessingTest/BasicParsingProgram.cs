@@ -12,7 +12,7 @@ namespace FishingRegs.TextProcessingTest;
 /// </summary>
 public class BasicParsingProgram
 {
-    public static async Task Main(string[] args)
+    public static async Task RunProgram(string[] args)
     {
         Console.WriteLine("=== FishingRegs Basic Text Parsing Test ===");
         Console.WriteLine();

@@ -151,16 +151,14 @@ public class UnitOfWorkTests : BaseRepositoryTest
         {
             Name = "Test State",
             Code = "TS",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow
         };
 
         var newCounty = new County
         {
             Name = "Test County",
             StateId = 1, // Use existing state
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow
         };
 
         var newWaterBody = new WaterBody
@@ -300,16 +298,18 @@ public class UnitOfWorkTests : BaseRepositoryTest
         var newRegulation = new FishingRegulation
         {
             WaterBodyId = newWaterBody.Id,
-            FishSpeciesId = 1,
-            RegulationDocumentId = 1,
-            SeasonStart = new DateOnly(2024, 5, 1),
-            SeasonEnd = new DateOnly(2024, 10, 31),
-            BagLimit = 5,
-            MinLength = 14.0m,
+            SpeciesId = 1,
+            RegulationYear = 2024,
             EffectiveDate = new DateOnly(2024, 1, 1),
+            SeasonStartMonth = 5,
+            SeasonStartDay = 1,
+            SeasonEndMonth = 10,
+            SeasonEndDay = 31,
+            DailyLimit = 5,
+            MinimumSizeInches = 14.0m,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
         };
 
         await _unitOfWork.FishingRegulations.AddAsync(newRegulation);

@@ -77,10 +77,9 @@ public static class TestDbContextFactory
             Longitude = -91.0591m,
             SurfaceAreaAcres = 20000000m,
             MaxDepthFeet = 1332,
-            Description = "Largest of the Great Lakes",
             IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
         };
 
         var mileLacs = new WaterBody
@@ -95,10 +94,9 @@ public static class TestDbContextFactory
             Longitude = -93.6628m,
             SurfaceAreaAcres = 132516m,
             MaxDepthFeet = 42,
-            Description = "Popular walleye lake",
             IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
         };
 
         context.WaterBodies.AddRange(lakeSuperior, mileLacs);
@@ -126,7 +124,7 @@ public static class TestDbContextFactory
         // Add test fishing regulations (using existing State and FishSpecies IDs)
         var superiorWalleyeReg = new FishingRegulation
         {
-            Id = Guid.NewGuid(),
+            // Id will be auto-generated since it's marked as Identity
             WaterBodyId = 1,
             SpeciesId = 1, // Walleye (already seeded via HasData)
             RegulationType = "general",
