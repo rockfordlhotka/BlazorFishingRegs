@@ -17,7 +17,7 @@ var postgres = builder.AddPostgres("postgres")
     .WithDataVolume("fishing-regs-postgres-data")
     .WithEnvironment("POSTGRES_DB", "FishingRegsDB");
 
-// var database = postgres.AddDatabase("FishingRegsDB");
+var database = postgres.AddDatabase("FishingRegsDB");
 
 // Add Azure Storage (using Azurite for local development)
 var storage = builder.AddAzureStorage("storage");
@@ -31,14 +31,11 @@ var seq = builder.AddSeq("seq")
 // var aiMockService = builder.AddProject<Projects.FishingRegs_AIMockService>("ai-mock-service")
 //     .WithHttpEndpoint(port: 7000, name: "http");
 
-// TODO: Add main Blazor application when project is created
-// var blazorApp = builder.AddProject<Projects.BlazorFishingRegs>("blazor-app")
-//     .WithReference(database)
-//     .WithReference(blobs)
-//     .WithReference(aiMockService)
-//     .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"))
-//     .WithHttpsEndpoint(port: 8443, name: "https")
-//     .WithHttpEndpoint(port: 8080, name: "http");
+// Add main Blazor Web application
+var blazorApp = builder.AddProject<Projects.FishingRegs_Web>("fishing-regs-web")
+    .WithReference(database)
+    .WithReference(blobs)
+    .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"));
 
 var app = builder.Build();
 

@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FishingRegs.TestConsole", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FishingRegs.TextProcessingTest", "FishingRegs.TextProcessingTest\FishingRegs.TextProcessingTest.csproj", "{8C28349E-6582-4E31-B336-6DF976323D9C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FishingRegs.Web", "FishingRegs.Web\FishingRegs.Web.csproj", "{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,18 @@ Global
 		{8C28349E-6582-4E31-B336-6DF976323D9C}.Release|x64.Build.0 = Release|Any CPU
 		{8C28349E-6582-4E31-B336-6DF976323D9C}.Release|x86.ActiveCfg = Release|Any CPU
 		{8C28349E-6582-4E31-B336-6DF976323D9C}.Release|x86.Build.0 = Release|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Debug|x64.Build.0 = Debug|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Debug|x86.Build.0 = Debug|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Release|x64.ActiveCfg = Release|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Release|x64.Build.0 = Release|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Release|x86.ActiveCfg = Release|Any CPU
+		{AA78C4FF-1CCC-47B5-94BC-48AE8374F9A6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

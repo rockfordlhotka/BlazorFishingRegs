@@ -1,0 +1,268 @@
+@page "/regulations"
+@page "/regulations/{LakeId:int}"
+@rendermode InteractiveServer
+
+<PageTitle>Fishing Regulations</PageTitle>
+
+<h1><i class="fas fa-list-ul"></i> Fishing Regulations</h1>
+
+@if (LakeId.HasValue)
+{
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3>@lakeName Regulations</h3>
+                    <span class="badge bg-primary">@selectedSpecies</span>
+                </div>
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading regulations...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (regulations.Any())
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="speciesFilter" class="form-label">Filter by Species</label>
+                                <select class="form-select" id="speciesFilter" value="@selectedSpecies" @onchange="OnSpeciesChanged">
+                                    <option value="All Species">All Species</option>
+                                    @foreach (var species in availableSpecies)
+                                    {
+                                        <option value="@species">@species</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        @foreach (var regulation in filteredRegulations)
+                        {
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-fish text-primary"></i> @regulation.Species
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Season:</strong><br/>
+                                            <span class="badge @(regulation.IsInSeason ? "bg-success" : "bg-warning")">
+                                                @regulation.Season
+                                            </span>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Bag Limit:</strong><br/>
+                                            @regulation.BagLimit
+                                        </div>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(regulation.SizeLimit))
+                                    {
+                                        <div class="row mt-2">
+                                            <div class="col-md-6">
+                                                <strong>Size Limit:</strong><br/>
+                                                @regulation.SizeLimit
+                                            </div>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(regulation.SpecialNotes))
+                                    {
+                                        <div class="row mt-2">
+                                            <div class="col-12">
+                                                <strong>Special Notes:</strong><br/>
+                                                <div class="alert alert-info small">
+                                                    @regulation.SpecialNotes
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> No regulations found for this lake.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Lake Information</h4>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Lake:</dt>
+                        <dd class="col-sm-8">@lakeName</dd>
+                        <dt class="col-sm-4">County:</dt>
+                        <dd class="col-sm-8">@lakeCounty</dd>
+                        <dt class="col-sm-4">State:</dt>
+                        <dd class="col-sm-8">@lakeState</dd>
+                        <dt class="col-sm-4">Last Updated:</dt>
+                        <dd class="col-sm-8">@lastUpdated.ToString("MMM dd, yyyy")</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h4>Actions</h4>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-outline-primary w-100 mb-2">
+                        <i class="fas fa-print"></i> Print Regulations
+                    </button>
+                    <button class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-share"></i> Share Lake
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Search for Lake Regulations</h3>
+                </div>
+                <div class="card-body">
+                    <p>Select a lake to view its fishing regulations.</p>
+                    <a href="/lakes" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search Lakes
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4>General Information</h4>
+                </div>
+                <div class="card-body">
+                    <p>Fishing regulations include:</p>
+                    <ul>
+                        <li>Seasonal restrictions</li>
+                        <li>Bag and possession limits</li>
+                        <li>Size restrictions</li>
+                        <li>Special regulations</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int? LakeId { get; set; }
+
+    private string lakeName = "";
+    private string lakeCounty = "";
+    private string lakeState = "";
+    private DateTime lastUpdated = DateTime.Now;
+    private string selectedSpecies = "All Species";
+    private bool isLoading = false;
+    
+    private List<FishingRegulation> regulations = new();
+    private List<FishingRegulation> filteredRegulations = new();
+    private List<string> availableSpecies = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (LakeId.HasValue)
+        {
+            await LoadRegulations();
+        }
+    }
+
+    private async Task LoadRegulations()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Simulate API call - replace with actual service call
+            await Task.Delay(1000);
+            
+            // Mock data for demonstration
+            lakeName = "Lake Superior";
+            lakeCounty = "Cook";
+            lakeState = "Minnesota";
+            lastUpdated = DateTime.Now.AddDays(-7);
+
+            regulations = new List<FishingRegulation>
+            {
+                new() 
+                { 
+                    Species = "Lake Trout", 
+                    Season = "Jan 1 - Sep 30", 
+                    BagLimit = "3 fish", 
+                    SizeLimit = "15 inch minimum",
+                    IsInSeason = true,
+                    SpecialNotes = "No more than 1 fish over 28 inches"
+                },
+                new() 
+                { 
+                    Species = "Northern Pike", 
+                    Season = "Year Round", 
+                    BagLimit = "10 fish", 
+                    SizeLimit = "26 inch minimum for 2 fish",
+                    IsInSeason = true,
+                    SpecialNotes = "Special size restrictions apply"
+                },
+                new() 
+                { 
+                    Species = "Walleye", 
+                    Season = "May 15 - Feb 28", 
+                    BagLimit = "6 fish", 
+                    SizeLimit = "15-20 inch protected slot",
+                    IsInSeason = false,
+                    SpecialNotes = "Closed during spawning season"
+                }
+            };
+
+            availableSpecies = regulations.Select(r => r.Species).Distinct().ToList();
+            FilterRegulations();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void FilterRegulations()
+    {
+        filteredRegulations = selectedSpecies == "All Species" 
+            ? regulations 
+            : regulations.Where(r => r.Species == selectedSpecies).ToList();
+        StateHasChanged();
+    }
+
+    private void OnSpeciesChanged(ChangeEventArgs e)
+    {
+        selectedSpecies = e.Value?.ToString() ?? "All Species";
+        FilterRegulations();
+    }
+
+    public class FishingRegulation
+    {
+        public string Species { get; set; } = "";
+        public string Season { get; set; } = "";
+        public string BagLimit { get; set; } = "";
+        public string SizeLimit { get; set; } = "";
+        public string SpecialNotes { get; set; } = "";
+        public bool IsInSeason { get; set; }
+    }
+}

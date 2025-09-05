@@ -1,0 +1,213 @@
+@page "/admin"
+@rendermode InteractiveServer
+
+<PageTitle>Admin - Fishing Regulations</PageTitle>
+
+<h1><i class="fas fa-cogs"></i> Administration</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Upload Regulation Document</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="documentUpload" class="form-label">Select Text File</label>
+                    <InputFile id="documentUpload" class="form-control" OnChange="HandleFileSelected" accept=".txt" />
+                    <div class="form-text">Upload fishing regulation text files for AI processing.</div>
+                </div>
+                
+                @if (selectedFile != null)
+                {
+                    <div class="alert alert-info">
+                        <strong>Selected:</strong> @selectedFile.Name (@(selectedFile.Size / 1024) KB)
+                    </div>
+                }
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" @onclick="ProcessDocument" disabled="@(selectedFile == null || isProcessing)">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <text> Processing...</text>
+                        }
+                        else
+                        {
+                            <i class="fas fa-upload"></i>
+                            <text> Process Document</text>
+                        }
+                    </button>
+                </div>
+                
+                @if (processError != null)
+                {
+                    <div class="alert alert-danger mt-3">
+                        <i class="fas fa-exclamation-triangle"></i> @processError
+                    </div>
+                }
+                
+                @if (processResults.Any())
+                {
+                    <div class="alert alert-success mt-3">
+                        <h5><i class="fas fa-check-circle"></i> Processing Complete</h5>
+                        <ul class="mb-0">
+                            @foreach (var result in processResults)
+                            {
+                                <li>@result</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h4>System Status</h4>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">Total Lakes:</dt>
+                    <dd class="col-sm-6">@totalLakes</dd>
+                    <dt class="col-sm-6">Regulations:</dt>
+                    <dd class="col-sm-6">@totalRegulations</dd>
+                    <dt class="col-sm-6">Documents:</dt>
+                    <dd class="col-sm-6">@totalDocuments</dd>
+                </dl>
+                <button class="btn btn-outline-primary w-100" @onclick="RefreshStats">
+                    <i class="fas fa-refresh"></i> Refresh
+                </button>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h4>Recent Activity</h4>
+            </div>
+            <div class="card-body">
+                @if (recentActivity.Any())
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var activity in recentActivity)
+                        {
+                            <div class="list-group-item px-0">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">@activity.Action</h6>
+                                    <small>@activity.Timestamp.ToString("MMM dd, HH:mm")</small>
+                                </div>
+                                <p class="mb-1">@activity.Description</p>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No recent activity</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IBrowserFile? selectedFile;
+    private bool isProcessing = false;
+    private string? processError;
+    private List<string> processResults = new();
+    
+    private int totalLakes = 0;
+    private int totalRegulations = 0;
+    private int totalDocuments = 0;
+    
+    private List<ActivityLog> recentActivity = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshStats();
+        LoadRecentActivity();
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        processError = null;
+        processResults.Clear();
+        StateHasChanged();
+    }
+
+    private async Task ProcessDocument()
+    {
+        if (selectedFile == null) return;
+
+        isProcessing = true;
+        processError = null;
+        processResults.Clear();
+        StateHasChanged();
+
+        try
+        {
+            // Simulate file processing
+            await Task.Delay(3000);
+
+            // Mock results
+            processResults.Add($"Successfully uploaded {selectedFile.Name}");
+            processResults.Add("AI extraction completed: 15 lakes processed");
+            processResults.Add("Database updated: 45 new regulations added");
+            
+            // Update stats
+            totalLakes += 15;
+            totalRegulations += 45;
+            totalDocuments += 1;
+            
+            // Add to activity log
+            recentActivity.Insert(0, new ActivityLog
+            {
+                Action = "Document Processed",
+                Description = $"Processed {selectedFile.Name}",
+                Timestamp = DateTime.Now
+            });
+            
+            selectedFile = null;
+        }
+        catch (Exception ex)
+        {
+            processError = ex.Message;
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshStats()
+    {
+        // Simulate API call to get stats
+        await Task.Delay(500);
+        
+        totalLakes = 247;
+        totalRegulations = 1205;
+        totalDocuments = 12;
+        
+        StateHasChanged();
+    }
+
+    private void LoadRecentActivity()
+    {
+        recentActivity = new List<ActivityLog>
+        {
+            new() { Action = "Document Processed", Description = "fishing_regs_2024.txt", Timestamp = DateTime.Now.AddHours(-2) },
+            new() { Action = "Database Updated", Description = "Added 23 new regulations", Timestamp = DateTime.Now.AddHours(-3) },
+            new() { Action = "System Backup", Description = "Automated backup completed", Timestamp = DateTime.Now.AddDays(-1) }
+        };
+    }
+
+    public class ActivityLog
+    {
+        public string Action { get; set; } = "";
+        public string Description { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+    }
+}

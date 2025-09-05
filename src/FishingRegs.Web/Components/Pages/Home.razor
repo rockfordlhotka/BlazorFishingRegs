@@ -1,0 +1,72 @@
+﻿@page "/"
+
+<PageTitle>Fishing Regulations</PageTitle>
+
+<div class="hero-section">
+    <h1 class="display-4 text-primary">Fishing Regulations</h1>
+    <p class="lead">Find fishing regulations for lakes and waterways</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-search"></i> Search for Lake Regulations</h3>
+            </div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control form-control-lg" placeholder="Enter lake name..." />
+                    <button class="btn btn-primary btn-lg" type="button">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+                <p class="text-muted">
+                    <small>Search for specific lakes to view current fishing regulations, seasons, and limits.</small>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-info-circle"></i> Quick Info</h4>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-fish text-primary"></i> View species-specific regulations</li>
+                    <li><i class="fas fa-calendar text-primary"></i> Check fishing seasons</li>
+                    <li><i class="fas fa-ruler text-primary"></i> Size and bag limits</li>
+                    <li><i class="fas fa-map-marker-alt text-primary"></i> Lake-specific rules</li>
+                </ul>
+                <a href="/lakes" class="btn btn-outline-primary">Browse All Lakes</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        text-align: center;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .card {
+        border: none;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .list-unstyled li {
+        padding: 0.25rem 0;
+    }
+    
+    .text-primary {
+        color: #0d6efd !important;
+    }
+</style>

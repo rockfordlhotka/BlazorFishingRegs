@@ -1,0 +1,181 @@
+@page "/lakes"
+@rendermode InteractiveServer
+
+<PageTitle>Lake Search - Fishing Regulations</PageTitle>
+
+<h1><i class="fas fa-map-marked-alt"></i> Lake Search</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Search for Lakes</h3>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="lakeSearch" class="form-label">Lake Name</label>
+                        <input type="text" class="form-control" id="lakeSearch" @bind="searchTerm" @onkeypress="OnSearchKeyPress" placeholder="Enter lake name..." />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="stateFilter" class="form-label">State</label>
+                        <select class="form-select" id="stateFilter" @bind="selectedState">
+                            <option value="">All States</option>
+                            <option value="Minnesota">Minnesota</option>
+                            <option value="Wisconsin">Wisconsin</option>
+                            <option value="Michigan">Michigan</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" @onclick="SearchLakes">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+                
+                @if (isLoading)
+                {
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Searching lakes...</p>
+                    </div>
+                }
+                else if (searchResults.Any())
+                {
+                    <div class="row">
+                        @foreach (var lake in searchResults)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">@lake.Name</h5>
+                                        <p class="card-text text-muted">
+                                            <i class="fas fa-map-marker-alt"></i> @lake.County, @lake.State
+                                        </p>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                @lake.RegulationCount regulations available
+                                            </small>
+                                        </p>
+                                        <button class="btn btn-outline-primary" @onclick="@(() => ViewRegulations(lake.Id))">
+                                            View Regulations
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else if (hasSearched)
+                {
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No lakes found matching your search criteria.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h4>Search Tips</h4>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-lightbulb text-warning"></i> Try partial lake names</li>
+                    <li><i class="fas fa-lightbulb text-warning"></i> Filter by state for better results</li>
+                    <li><i class="fas fa-lightbulb text-warning"></i> Check spelling and try variations</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h4>Popular Lakes</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <button class="list-group-item list-group-item-action" @onclick="@(() => QuickSearch("Lake Superior"))">
+                        Lake Superior
+                    </button>
+                    <button class="list-group-item list-group-item-action" @onclick="@(() => QuickSearch("Mille Lacs"))">
+                        Mille Lacs Lake
+                    </button>
+                    <button class="list-group-item list-group-item-action" @onclick="@(() => QuickSearch("Leech Lake"))">
+                        Leech Lake
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string searchTerm = "";
+    private string selectedState = "";
+    private bool isLoading = false;
+    private bool hasSearched = false;
+    private List<LakeSearchResult> searchResults = new();
+
+    private async Task SearchLakes()
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            return;
+
+        isLoading = true;
+        hasSearched = false;
+        StateHasChanged();
+
+        try
+        {
+            // Simulate API call - replace with actual service call
+            await Task.Delay(1000);
+            
+            // Mock data for demonstration
+            searchResults = new List<LakeSearchResult>
+            {
+                new() { Id = 1, Name = "Lake Superior", County = "Cook", State = "Minnesota", RegulationCount = 15 },
+                new() { Id = 2, Name = "Superior National Forest Lakes", County = "Cook", State = "Minnesota", RegulationCount = 8 }
+            }.Where(l => l.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) &&
+                        (string.IsNullOrEmpty(selectedState) || l.State == selectedState))
+             .ToList();
+        }
+        finally
+        {
+            isLoading = false;
+            hasSearched = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchLakes();
+        }
+    }
+
+    private async Task QuickSearch(string lakeName)
+    {
+        searchTerm = lakeName;
+        await SearchLakes();
+    }
+
+    private void ViewRegulations(int lakeId)
+    {
+        // Navigate to regulations page for specific lake
+        // This would typically use NavigationManager
+    }
+
+    public class LakeSearchResult
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string County { get; set; } = "";
+        public string State { get; set; } = "";
+        public int RegulationCount { get; set; }
+    }
+}

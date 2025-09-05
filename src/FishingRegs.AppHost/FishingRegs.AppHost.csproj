@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FishingRegs.ServiceDefaults\FishingRegs.ServiceDefaults.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\FishingRegs.Web\FishingRegs.Web.csproj" />
   </ItemGroup>
 
 </Project>
