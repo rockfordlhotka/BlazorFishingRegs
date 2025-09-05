@@ -77,12 +77,6 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapGet("/", () => "Fishing Regulations Service is running!");
-        }
-
         // Adding health checks to the request pipeline.
         // We also add the health checks routing to applications.
         app.MapHealthChecks("/health");

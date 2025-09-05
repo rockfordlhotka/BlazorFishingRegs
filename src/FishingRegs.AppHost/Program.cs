@@ -19,9 +19,8 @@ var postgres = builder.AddPostgres("postgres")
 
 var database = postgres.AddDatabase("FishingRegsDB");
 
-// Add Azure Storage (using Azurite for local development)
-var storage = builder.AddAzureStorage("storage");
-var blobs = storage.AddBlobs("blobs");
+// Note: Azure Storage is configured via user secrets in the Web project
+// using ConnectionStrings:AzureStorage rather than Aspire hosting integration
 
 // Add Seq for logging
 var seq = builder.AddSeq("seq")
@@ -34,7 +33,6 @@ var seq = builder.AddSeq("seq")
 // Add main Blazor Web application
 var blazorApp = builder.AddProject<Projects.FishingRegs_Web>("fishing-regs-web")
     .WithReference(database)
-    .WithReference(blobs)
     .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"));
 
 var app = builder.Build();

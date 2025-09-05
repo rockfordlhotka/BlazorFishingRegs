@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
     <ProjectReference Include="..\FishingRegs.ServiceDefaults\FishingRegs.ServiceDefaults.csproj" />
@@ -10,6 +10,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>06f56a03-ba48-413b-bb53-5e6bd9e0d4de</UserSecretsId>
   </PropertyGroup>
 
 </Project>
