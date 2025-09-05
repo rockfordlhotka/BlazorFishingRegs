@@ -56,7 +56,7 @@ public interface IFishingRegulationRepository : IRepository<FishingRegulation>
     /// <param name="documentId">The regulation document ID</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Collection of regulations from the document</returns>
-    Task<IEnumerable<FishingRegulation>> GetByDocumentAsync(int documentId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<FishingRegulation>> GetByDocumentAsync(Guid documentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets fishing regulations with their related data (water body, species, document)

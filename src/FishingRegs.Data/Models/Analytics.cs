@@ -58,7 +58,7 @@ public class RegulationAuditLog
 
     [Required]
     [Column("regulation_id")]
-    public Guid RegulationId { get; set; }
+    public int RegulationId { get; set; }
 
     [Required]
     [MaxLength(20)]

@@ -20,7 +20,9 @@ var choice = AnsiConsole.Prompt(
         .MoreChoicesText("[grey](Move up and down to reveal more options)[/]")
         .AddChoices(new[] {
             "Simple AI Extraction Test",
-            "Full Database Population Test", 
+            "Full Database Population Test (Batch)", 
+            "Streaming Database Population Test (Real-time)",
+            "Mock Database Population Test (No OpenAI)",
             "Create Database Schema",
             "Exit"
         }));
@@ -33,9 +35,19 @@ switch (choice)
         await SimpleAiExtractionTest.RunAiExtractionTest(args);
         break;
         
-    case "Full Database Population Test":
-        AnsiConsole.MarkupLine("[green]Running Full Database Population Test...[/]");
+    case "Full Database Population Test (Batch)":
+        AnsiConsole.MarkupLine("[green]Running Full Database Population Test (Batch Mode)...[/]");
         await DatabasePopulationTestProgram.MainDatabase(args);
+        break;
+        
+    case "Streaming Database Population Test (Real-time)":
+        AnsiConsole.MarkupLine("[green]Running Streaming Database Population Test (Real-time Mode)...[/]");
+        await DatabasePopulationTestProgram.MainDatabaseStream(args);
+        break;
+        
+    case "Mock Database Population Test (No OpenAI)":
+        AnsiConsole.MarkupLine("[green]Running Mock Database Population Test...[/]");
+        await MockDatabasePopulationTest.RunMockDatabaseTest(args);
         break;
         
     case "Create Database Schema":

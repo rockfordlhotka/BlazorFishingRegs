@@ -90,10 +90,10 @@ public class FishingRegulationRepository : Repository<FishingRegulation>, IFishi
     }
 
     /// <inheritdoc />
-    public async Task<IEnumerable<FishingRegulation>> GetByDocumentAsync(int documentId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<FishingRegulation>> GetByDocumentAsync(Guid documentId, CancellationToken cancellationToken = default)
     {
         return await _dbSet
-            .Where(fr => fr.SourceDocumentId == Guid.Parse(documentId.ToString()) && fr.IsActive)
+            .Where(fr => fr.SourceDocumentId == documentId && fr.IsActive)
             .Include(fr => fr.WaterBody)
             .Include(fr => fr.Species)
             .OrderBy(fr => fr.WaterBody.Name)
@@ -128,7 +128,7 @@ public class FishingRegulationRepository : Repository<FishingRegulation>, IFishi
                 .ThenInclude(wb => wb.County)
             .Include(fr => fr.Species)
             .Include(fr => fr.SourceDocument)
-            .FirstOrDefaultAsync(fr => fr.Id == Guid.Parse(id.ToString()), cancellationToken);
+            .FirstOrDefaultAsync(fr => fr.Id == id, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -136,11 +136,11 @@ public class FishingRegulationRepository : Repository<FishingRegulation>, IFishi
     {
         return await _dbSet
             .Where(fr => fr.IsActive && 
-                         !fr.IsYearRound &&
-                         (fr.SeasonOpenDate.HasValue || fr.SeasonCloseDate.HasValue))
+                         (fr.SeasonStartMonth.HasValue || fr.SeasonEndMonth.HasValue))
             .Include(fr => fr.WaterBody)
             .Include(fr => fr.Species)
-            .OrderBy(fr => fr.SeasonOpenDate)
+            .OrderBy(fr => fr.SeasonStartMonth)
+            .ThenBy(fr => fr.SeasonStartDay)
             .ThenBy(fr => fr.WaterBody.Name)
             .ToListAsync(cancellationToken);
     }

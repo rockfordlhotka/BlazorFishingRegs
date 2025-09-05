@@ -296,7 +296,7 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         {
             var normalizedName = NormalizeFishSpeciesName(speciesName);
             
-            // Try to find existing species
+            // Try to find existing species in database
             var existingSpecies = await _unitOfWork.FishSpecies.SearchByNameAsync(normalizedName, cancellationToken);
             var foundSpecies = existingSpecies.FirstOrDefault(fs => 
                 string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase));
@@ -307,19 +307,52 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
                 continue;
             }
 
-            // Create new species if not found
-            var newSpecies = new FishSpecies
+            // Check if we already processed this species in this batch
+            if (result.Values.Any(fs => string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase)))
             {
-                CommonName = normalizedName,
-                IsActive = true,
-                CreatedAt = DateTimeOffset.UtcNow,
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
+                var existingInBatch = result.Values.First(fs => 
+                    string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase));
+                result[speciesName] = existingInBatch;
+                continue;
+            }
 
-            var createdSpecies = await _unitOfWork.FishSpecies.AddAsync(newSpecies, cancellationToken);
-            result[speciesName] = createdSpecies;
-            
-            _logger.LogInformation($"Created new fish species: {normalizedName}");
+            try
+            {
+                // Create new species if not found
+                var newSpecies = new FishSpecies
+                {
+                    CommonName = normalizedName,
+                    IsActive = true,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow
+                };
+
+                var createdSpecies = await _unitOfWork.FishSpecies.AddAsync(newSpecies, cancellationToken);
+                
+                // Save immediately to avoid duplicate key violations in batch operations
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                
+                result[speciesName] = createdSpecies;
+                _logger.LogInformation($"Created new fish species: {normalizedName}");
+            }
+            catch (Exception ex) when (ex.Message.Contains("duplicate key") || ex.Message.Contains("23505"))
+            {
+                // Handle race condition - another process created the species
+                _logger.LogDebug($"Species {normalizedName} was created by another process, searching again");
+                var retrySpecies = await _unitOfWork.FishSpecies.SearchByNameAsync(normalizedName, cancellationToken);
+                var foundAfterRetry = retrySpecies.FirstOrDefault(fs => 
+                    string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase));
+                
+                if (foundAfterRetry != null)
+                {
+                    result[speciesName] = foundAfterRetry;
+                }
+                else
+                {
+                    _logger.LogError($"Failed to find species {normalizedName} after duplicate key error");
+                    throw;
+                }
+            }
         }
 
         return result;
@@ -410,11 +443,11 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
 
         var regulation = new FishingRegulation
         {
-            Id = Guid.NewGuid(),
             WaterBodyId = waterBodyId,
             SpeciesId = speciesId,
             RegulationYear = regulationYear,
             SourceDocumentId = sourceDocumentId,
+            RegulationType = "general", // Default regulation type
             EffectiveDate = effectiveDate,
             ExpirationDate = expirationDate,
             
@@ -425,15 +458,12 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
             // Sizes (extract numeric values where possible)
             MinimumSizeInches = ExtractSizeInInches(aiRegulation.MinimumSize),
             MaximumSizeInches = ExtractSizeInInches(aiRegulation.MaximumSize),
-            SizeLimitNotes = string.Join("; ", new[] { aiRegulation.MinimumSize, aiRegulation.MaximumSize, aiRegulation.ProtectedSlot }
-                .Where(s => !string.IsNullOrWhiteSpace(s))),
             
             // Special regulations
             SpecialRegulations = new List<string> { aiRegulation.Notes }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
             
-            // Season info
-            SeasonNotes = aiRegulation.SeasonInfo,
-            IsYearRound = string.IsNullOrWhiteSpace(aiRegulation.SeasonInfo),
+            // Store season info in the general notes field since there's no season_notes column
+            Notes = aiRegulation.SeasonInfo,
             
             // Metadata
             IsActive = true,
@@ -453,11 +483,8 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         existing.PossessionLimit = aiRegulation.PossessionLimit;
         existing.MinimumSizeInches = ExtractSizeInInches(aiRegulation.MinimumSize);
         existing.MaximumSizeInches = ExtractSizeInInches(aiRegulation.MaximumSize);
-        existing.SizeLimitNotes = string.Join("; ", new[] { aiRegulation.MinimumSize, aiRegulation.MaximumSize, aiRegulation.ProtectedSlot }
-            .Where(s => !string.IsNullOrWhiteSpace(s)));
         existing.SpecialRegulations = new List<string> { aiRegulation.Notes }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-        existing.SeasonNotes = aiRegulation.SeasonInfo;
-        existing.IsYearRound = string.IsNullOrWhiteSpace(aiRegulation.SeasonInfo);
+        existing.Notes = aiRegulation.SeasonInfo; // Store season info in general notes field
         
         ExtractProtectedSlotInfo(aiRegulation.ProtectedSlot, existing);
     }
@@ -495,11 +522,6 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
                 regulation.ProtectedSlotMaxInches = maxSize;
         }
 
-        // Look for exception numbers like "(1 fish allowed)"
-        var exceptionMatch = Regex.Match(protectedSlotString, @"\((\d+)\s+fish", RegexOptions.IgnoreCase);
-        if (exceptionMatch.Success && int.TryParse(exceptionMatch.Groups[1].Value, out var exceptions))
-        {
-            regulation.ProtectedSlotExceptions = exceptions;
-        }
+        // Note: Protected slot exceptions are noted in the special regulations instead
     }
 }

@@ -24,6 +24,19 @@ public interface IAiLakeRegulationExtractionService
     Task<AiLakeRegulation?> ExtractSingleLakeRegulationAsync(string lakeText, string lakeName, string county = "");
 
     /// <summary>
+    /// Extracts and processes lake regulations one at a time, calling the provided callback for each completed lake
+    /// This allows for real-time processing where each lake's database update happens immediately after AI extraction
+    /// </summary>
+    /// <param name="regulationsText">The full text of the fishing regulations document</param>
+    /// <param name="onLakeProcessed">Callback function called for each successfully extracted lake regulation</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Summary of the extraction process</returns>
+    Task<AiLakeRegulationExtractionResult> ExtractLakeRegulationsStreamAsync(
+        string regulationsText,
+        Func<AiLakeRegulation, Task> onLakeProcessed,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Processes text and splits it into individual lake regulation entries
     /// </summary>
     /// <param name="specialRegulationsSection">The "Waters With Experimental and Special Regulations" section text</param>

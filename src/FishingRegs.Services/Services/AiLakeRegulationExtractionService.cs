@@ -98,6 +98,84 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
         return result;
     }
 
+    public async Task<AiLakeRegulationExtractionResult> ExtractLakeRegulationsStreamAsync(
+        string regulationsText,
+        Func<AiLakeRegulation, Task> onLakeProcessed,
+        CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var result = new AiLakeRegulationExtractionResult();
+        
+        try
+        {
+            _logger.LogInformation("Starting AI-based lake regulation extraction with streaming processing");
+
+            // First, extract the special regulations section
+            var specialRegulationsSection = ExtractSpecialRegulationsSection(regulationsText);
+            if (string.IsNullOrWhiteSpace(specialRegulationsSection))
+            {
+                result.ErrorMessage = "Could not find 'Waters With Experimental and Special Regulations' section";
+                return result;
+            }
+
+            // Parse individual lake entries
+            var lakeEntries = ParseLakeEntries(specialRegulationsSection);
+            _logger.LogInformation($"Found {lakeEntries.Count} lake entries to process with streaming");
+
+            // Process each lake entry immediately after extraction
+            foreach (var (lakeName, county, regulationText) in lakeEntries)
+            {
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    
+                    _logger.LogInformation("Processing lake: {LakeName} in real-time", lakeName);
+                    
+                    var lakeRegulation = await ExtractSingleLakeRegulationAsync(regulationText, lakeName, county);
+                    if (lakeRegulation != null)
+                    {
+                        result.ExtractedRegulations.Add(lakeRegulation);
+                        result.TotalRegulationsExtracted += lakeRegulation.Regulations.SpecialRegulations.Count;
+                        
+                        // Immediately process this lake (call database population)
+                        await onLakeProcessed(lakeRegulation);
+                        
+                        _logger.LogInformation("Completed processing lake: {LakeName}", lakeName);
+                    }
+                    result.TotalLakesProcessed++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, $"Failed to process lake: {lakeName}");
+                    result.ProcessingWarnings.Add($"Failed to process {lakeName}: {ex.Message}");
+                }
+                
+                // Add a small delay to avoid rate limiting
+                await Task.Delay(100, cancellationToken);
+            }
+
+            result.IsSuccess = true;
+            _logger.LogInformation($"Successfully extracted and processed regulations for {result.ExtractedRegulations.Count} lakes in streaming mode");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("Lake regulation extraction was cancelled");
+            result.ErrorMessage = "Processing was cancelled";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during streaming lake regulation extraction");
+            result.ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            result.ProcessingTime = stopwatch.Elapsed;
+        }
+
+        return result;
+    }
+
     public async Task<AiLakeRegulation?> ExtractSingleLakeRegulationAsync(string lakeText, string lakeName, string county = "")
     {
         try

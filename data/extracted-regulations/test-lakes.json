@@ -1,0 +1,118 @@
+{
+  "isSuccess": true,
+  "extractedRegulations": [
+    {
+      "lakeId": 2001,
+      "lakeName": "Test Lake Charlie",
+      "county": "Test County",
+      "regulations": {
+        "specialRegulations": [
+          {
+            "species": "Walleye",
+            "regulationType": 0,
+            "dailyLimit": 6,
+            "possessionLimit": 12,
+            "minimumSize": "15 inches",
+            "maximumSize": null,
+            "protectedSlot": null,
+            "seasonInfo": "Year-round",
+            "catchAndRelease": false,
+            "notes": "Standard walleye regulation"
+          },
+          {
+            "species": "Walleye",
+            "regulationType": 2,
+            "dailyLimit": null,
+            "possessionLimit": null,
+            "minimumSize": "15 inches",
+            "maximumSize": "20 inches",
+            "protectedSlot": "20-24 inches (1 fish allowed)",
+            "seasonInfo": null,
+            "catchAndRelease": false,
+            "notes": "Protected slot limit for trophy walleye"
+          },
+          {
+            "species": "Northern Pike",
+            "regulationType": 0,
+            "dailyLimit": 3,
+            "possessionLimit": 6,
+            "minimumSize": null,
+            "maximumSize": null,
+            "protectedSlot": null,
+            "seasonInfo": "May 1 - February 28",
+            "catchAndRelease": false,
+            "notes": "Closed during spawning season"
+          },
+          {
+            "species": "Bass",
+            "regulationType": 4,
+            "dailyLimit": null,
+            "possessionLimit": null,
+            "minimumSize": null,
+            "maximumSize": null,
+            "protectedSlot": null,
+            "seasonInfo": "Closed season March 1 - May 15",
+            "catchAndRelease": true,
+            "notes": "Catch and release only during spawning season"
+          }
+        ],
+        "generalNotes": "This is a test lake with comprehensive regulations for testing purposes",
+        "isExperimental": false,
+        "lastUpdated": "2025-09-04T00:00:00Z"
+      }
+    },
+    {
+      "lakeId": 2002,
+      "lakeName": "Test Lake Delta", 
+      "county": "Test County",
+      "regulations": {
+        "specialRegulations": [
+          {
+            "species": "Lake Trout",
+            "regulationType": 6,
+            "dailyLimit": 2,
+            "possessionLimit": 4,
+            "minimumSize": "20 inches",
+            "maximumSize": null,
+            "protectedSlot": "28-36 inches (1 fish allowed)",
+            "seasonInfo": "Year-round with special restrictions",
+            "catchAndRelease": false,
+            "notes": "Combined bag and size limits for lake trout"
+          },
+          {
+            "species": "Salmon",
+            "regulationType": 0,
+            "dailyLimit": 3,
+            "possessionLimit": 6,
+            "minimumSize": "10 inches",
+            "maximumSize": null,
+            "protectedSlot": null,
+            "seasonInfo": "April 15 - October 31",
+            "catchAndRelease": false,
+            "notes": "Combined limit for all salmon species"
+          },
+          {
+            "species": "Bluegill",
+            "regulationType": 0,
+            "dailyLimit": 20,
+            "possessionLimit": 40,
+            "minimumSize": null,
+            "maximumSize": null,
+            "protectedSlot": null,
+            "seasonInfo": "Year-round",
+            "catchAndRelease": false,
+            "notes": "Standard panfish regulation"
+          }
+        ],
+        "generalNotes": "Deep lake with cold water species",
+        "isExperimental": true,
+        "lastUpdated": "2025-09-04T00:00:00Z"
+      }
+    }
+  ],
+  "errorMessage": "",
+  "totalLakesProcessed": 2,
+  "totalRegulationsExtracted": 7,
+  "processingTime": "00:00:00",
+  "processingWarnings": []
+}

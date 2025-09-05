@@ -68,20 +68,8 @@ public class FishingRegsDbContext : DbContext
             c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
             c => c.ToList());
 
-        // Configure array types for PostgreSQL with value comparers
-        modelBuilder.Entity<FishingRegulation>()
-            .Property(e => e.SpecialRegulations)
-            .HasConversion(
-                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
-            .Metadata.SetValueComparer(stringListComparer);
-
-        modelBuilder.Entity<FishingRegulation>()
-            .Property(e => e.RequiredStamps)
-            .HasConversion(
-                v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
-            .Metadata.SetValueComparer(stringListComparer);
+        // Configure array types for PostgreSQL - using native array support (no JSON conversion needed)
+        // Both SpecialRegulations and RequiredStamps will use PostgreSQL native text[] arrays
 
         modelBuilder.Entity<RegulationAuditLog>()
             .Property(e => e.ChangedFields)
@@ -137,10 +125,6 @@ public class FishingRegsDbContext : DbContext
         modelBuilder.Entity<FishingRegulation>()
             .Property(e => e.ProtectedSlotMaxInches)
             .HasPrecision(5, 2);
-
-        modelBuilder.Entity<FishingRegulation>()
-            .Property(e => e.ConfidenceScore)
-            .HasPrecision(5, 4);
 
         modelBuilder.Entity<RegulationDocument>()
             .Property(e => e.ConfidenceScore)
@@ -232,14 +216,6 @@ public class FishingRegsDbContext : DbContext
 
         modelBuilder.Entity<FishingRegulation>()
             .Property(e => e.ExpirationDate)
-            .HasConversion<DateOnlyConverter, DateOnlyComparer>();
-
-        modelBuilder.Entity<FishingRegulation>()
-            .Property(e => e.SeasonOpenDate)
-            .HasConversion<DateOnlyConverter, DateOnlyComparer>();
-
-        modelBuilder.Entity<FishingRegulation>()
-            .Property(e => e.SeasonCloseDate)
             .HasConversion<DateOnlyConverter, DateOnlyComparer>();
 
         // Similar conversions for view models
@@ -351,7 +327,7 @@ public class FishingRegsDbContext : DbContext
 public class DateOnlyConverter : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateOnly, DateTime>
 {
     public DateOnlyConverter() : base(
-        dateOnly => dateOnly.ToDateTime(TimeOnly.MinValue),
+        dateOnly => DateTime.SpecifyKind(dateOnly.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc),
         dateTime => DateOnly.FromDateTime(dateTime))
     {
     }

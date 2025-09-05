@@ -25,7 +25,7 @@ public class FishingRegulation
     [Column("regulation_year")]
     public int RegulationYear { get; set; }
 
-    [Column("source_document_id")]
+    [Column("regulation_document_id")]
     public Guid? SourceDocumentId { get; set; }
 
     [Required]
@@ -44,9 +44,6 @@ public class FishingRegulation
 
     [Column("is_year_round")]
     public bool IsYearRound { get; set; } = false;
-
-    [Column("season_notes")]
-    public string? SeasonNotes { get; set; }
 
     // Bag Limits
     [Column("daily_limit")]
