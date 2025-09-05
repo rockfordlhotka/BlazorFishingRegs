@@ -139,17 +139,14 @@
 
         try
         {
-            // Search for water bodies using the repository
+            // Search for water bodies using the repository (now includes State and County navigation properties)
             var results = await WaterBodyRepository.SearchByNameAsync(searchTerm);
             
             // Filter by state if selected
             if (!string.IsNullOrEmpty(selectedState))
             {
-                // Get results with related data to access State information
-                var allResults = await WaterBodyRepository.GetWithRelatedDataAsync();
-                searchResults = allResults
-                    .Where(w => w.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) && 
-                               w.State?.Name == selectedState)
+                searchResults = results
+                    .Where(w => w.State?.Name == selectedState)
                     .ToList();
             }
             else

@@ -69,4 +69,12 @@ public interface IWaterBodyRepository : IRepository<WaterBody>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Water body with related data or null if not found</returns>
     Task<WaterBody?> GetByIdWithRelatedDataAsync(int id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets a water body by ID with only state and county information (safe query that avoids missing tables)
+    /// </summary>
+    /// <param name="id">The water body ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Water body with state and county data or null if not found</returns>
+    Task<WaterBody?> GetWaterBodyWithStateAndCountyAsync(int id, CancellationToken cancellationToken = default);
 }

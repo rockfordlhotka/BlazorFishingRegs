@@ -20,7 +20,13 @@
                     <span class="badge bg-primary">@selectedSpecies</span>
                 </div>
                 <div class="card-body">
-                    @if (isLoading)
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> @errorMessage
+                        </div>
+                    }
+                    else if (isLoading)
                     {
                         <div class="text-center">
                             <div class="spinner-border text-primary" role="status">
@@ -189,47 +195,54 @@ else
         }
     }
 
+    private string errorMessage = "";
+
     private async Task LoadRegulations()
     {
         isLoading = true;
+        errorMessage = "";
         StateHasChanged();
 
         try
         {
             if (LakeId.HasValue)
             {
-                // Load water body information
-                var waterBody = await WaterBodyRepository.GetByIdWithRelatedDataAsync(LakeId.Value);
+                // Load water body information using a custom query that avoids the missing table
+                var waterBody = await WaterBodyRepository.GetWaterBodyWithStateAndCountyAsync(LakeId.Value);
                 if (waterBody != null)
                 {
                     lakeName = waterBody.Name;
                     lakeCounty = waterBody.County?.Name ?? "Unknown";
                     lakeState = waterBody.State?.Name ?? "Unknown";
                 }
+                else
+                {
+                    errorMessage = $"Lake with ID {LakeId.Value} not found.";
+                    return;
+                }
 
                 // Load fishing regulations for this water body
                 var dbRegulations = await FishingRegulationRepository.GetByWaterBodyAsync(LakeId.Value);
                 regulations = dbRegulations.ToList();
 
-                // Convert to display format
-                var displayRegulations = regulations.Select(r => new RegulationDisplay
-                {
-                    Species = r.Species?.CommonName ?? "Unknown Species",
-                    Season = FormatSeason(r),
-                    BagLimit = FormatBagLimit(r),
-                    SizeLimit = FormatSizeLimit(r),
-                    SpecialNotes = FormatSpecialNotes(r),
-                    IsInSeason = IsCurrentlyInSeason(r)
-                }).ToList();
+                // Debug info
+                Console.WriteLine($"Found {regulations.Count} regulations for lake {LakeId.Value}");
 
-                availableSpecies = displayRegulations.Select(r => r.Species).Distinct().ToList();
+                // Get available species from regulations
+                availableSpecies = regulations
+                    .Where(r => r.Species?.CommonName != null)
+                    .Select(r => r.Species!.CommonName)
+                    .Distinct()
+                    .ToList();
+
                 FilterRegulations();
             }
         }
         catch (Exception ex)
         {
-            // Log error - in production you'd use ILogger
-            Console.WriteLine($"Error loading regulations: {ex.Message}");
+            // Show error in UI instead of just console
+            errorMessage = $"Error loading regulations: {ex.Message}";
+            Console.WriteLine($"Error loading regulations: {ex}");
             regulations = new List<FishingRegs.Data.Models.FishingRegulation>();
             filteredRegulations = new List<RegulationDisplay>();
         }
@@ -326,6 +339,8 @@ else
         filteredRegulations = selectedSpecies == "All Species" 
             ? displayRegulations.ToList()
             : displayRegulations.Where(r => r.Species == selectedSpecies).ToList();
+        
+        Console.WriteLine($"Filtered to {filteredRegulations.Count} regulations for species: {selectedSpecies}");
         StateHasChanged();
     }
 

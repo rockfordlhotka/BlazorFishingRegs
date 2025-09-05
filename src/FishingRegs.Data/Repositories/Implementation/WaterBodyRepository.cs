@@ -20,6 +20,8 @@ public class WaterBodyRepository : Repository<WaterBody>, IWaterBodyRepository
     public async Task<IEnumerable<WaterBody>> GetByStateAsync(int stateId, CancellationToken cancellationToken = default)
     {
         return await _dbSet
+            .Include(wb => wb.State)
+            .Include(wb => wb.County)
             .Where(wb => wb.StateId == stateId && wb.IsActive)
             .OrderBy(wb => wb.Name)
             .ToListAsync(cancellationToken);
@@ -29,6 +31,8 @@ public class WaterBodyRepository : Repository<WaterBody>, IWaterBodyRepository
     public async Task<IEnumerable<WaterBody>> GetByCountyAsync(int countyId, CancellationToken cancellationToken = default)
     {
         return await _dbSet
+            .Include(wb => wb.State)
+            .Include(wb => wb.County)
             .Where(wb => wb.CountyId == countyId && wb.IsActive)
             .OrderBy(wb => wb.Name)
             .ToListAsync(cancellationToken);
@@ -38,6 +42,8 @@ public class WaterBodyRepository : Repository<WaterBody>, IWaterBodyRepository
     public async Task<IEnumerable<WaterBody>> GetByTypeAsync(string waterType, CancellationToken cancellationToken = default)
     {
         return await _dbSet
+            .Include(wb => wb.State)
+            .Include(wb => wb.County)
             .Where(wb => wb.WaterType == waterType && wb.IsActive)
             .OrderBy(wb => wb.Name)
             .ToListAsync(cancellationToken);
@@ -50,6 +56,8 @@ public class WaterBodyRepository : Repository<WaterBody>, IWaterBodyRepository
         // For compatibility with testing, we'll use regular Contains for pattern matching
         // In production with PostgreSQL, this should use ILike for case-insensitive matching
         return await _dbSet
+            .Include(wb => wb.State)
+            .Include(wb => wb.County)
             .Where(wb => wb.IsActive && wb.Name.ToLower().Contains(namePattern.ToLower()))
             .OrderBy(wb => wb.Name)
             .ToListAsync(cancellationToken);
@@ -64,6 +72,8 @@ public class WaterBodyRepository : Repository<WaterBody>, IWaterBodyRepository
         CancellationToken cancellationToken = default)
     {
         return await _dbSet
+            .Include(wb => wb.State)
+            .Include(wb => wb.County)
             .Where(wb => wb.IsActive &&
                          wb.Latitude.HasValue &&
                          wb.Longitude.HasValue &&
@@ -93,10 +103,19 @@ public class WaterBodyRepository : Repository<WaterBody>, IWaterBodyRepository
         return await _dbSet
             .Include(wb => wb.State)
             .Include(wb => wb.County)
-            .Include(wb => wb.WaterBodySpecies)
-                .ThenInclude(wbs => wbs.Species)
             .Include(wb => wb.FishingRegulations.Where(fr => fr.IsActive))
                 .ThenInclude(fr => fr.Species)
+            .FirstOrDefaultAsync(wb => wb.Id == id, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets a water body by ID including only State and County information (avoids missing tables)
+    /// </summary>
+    public async Task<WaterBody?> GetWaterBodyWithStateAndCountyAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(wb => wb.State)
+            .Include(wb => wb.County)
             .FirstOrDefaultAsync(wb => wb.Id == id, cancellationToken);
     }
 
