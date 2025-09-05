@@ -1,5 +1,9 @@
 @page "/lakes"
 @rendermode InteractiveServer
+@using FishingRegs.Data.Repositories
+@using FishingRegs.Data.Models
+@inject IWaterBodyRepository WaterBodyRepository
+@inject NavigationManager Navigation
 
 <PageTitle>Lake Search - Fishing Regulations</PageTitle>
 
@@ -52,11 +56,16 @@
                                     <div class="card-body">
                                         <h5 class="card-title">@lake.Name</h5>
                                         <p class="card-text text-muted">
-                                            <i class="fas fa-map-marker-alt"></i> @lake.County, @lake.State
+                                            <i class="fas fa-map-marker-alt"></i> 
+                                            @(lake.County?.Name ?? "Unknown County"), @(lake.State?.Name ?? "Unknown State")
                                         </p>
                                         <p class="card-text">
                                             <small class="text-muted">
-                                                @lake.RegulationCount regulations available
+                                                @lake.WaterType
+                                                @if (lake.SurfaceAreaAcres.HasValue)
+                                                {
+                                                    <span> • @lake.SurfaceAreaAcres.Value acres</span>
+                                                }
                                             </small>
                                         </p>
                                         <button class="btn btn-outline-primary" @onclick="@(() => ViewRegulations(lake.Id))">
@@ -117,7 +126,7 @@
     private string selectedState = "";
     private bool isLoading = false;
     private bool hasSearched = false;
-    private List<LakeSearchResult> searchResults = new();
+    private List<WaterBody> searchResults = new();
 
     private async Task SearchLakes()
     {
@@ -130,17 +139,29 @@
 
         try
         {
-            // Simulate API call - replace with actual service call
-            await Task.Delay(1000);
+            // Search for water bodies using the repository
+            var results = await WaterBodyRepository.SearchByNameAsync(searchTerm);
             
-            // Mock data for demonstration
-            searchResults = new List<LakeSearchResult>
+            // Filter by state if selected
+            if (!string.IsNullOrEmpty(selectedState))
             {
-                new() { Id = 1, Name = "Lake Superior", County = "Cook", State = "Minnesota", RegulationCount = 15 },
-                new() { Id = 2, Name = "Superior National Forest Lakes", County = "Cook", State = "Minnesota", RegulationCount = 8 }
-            }.Where(l => l.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) &&
-                        (string.IsNullOrEmpty(selectedState) || l.State == selectedState))
-             .ToList();
+                // Get results with related data to access State information
+                var allResults = await WaterBodyRepository.GetWithRelatedDataAsync();
+                searchResults = allResults
+                    .Where(w => w.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) && 
+                               w.State?.Name == selectedState)
+                    .ToList();
+            }
+            else
+            {
+                searchResults = results.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log error - in production you'd use ILogger
+            Console.WriteLine($"Error searching lakes: {ex.Message}");
+            searchResults = new List<WaterBody>();
         }
         finally
         {
@@ -167,15 +188,6 @@
     private void ViewRegulations(int lakeId)
     {
         // Navigate to regulations page for specific lake
-        // This would typically use NavigationManager
-    }
-
-    public class LakeSearchResult
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string County { get; set; } = "";
-        public string State { get; set; } = "";
-        public int RegulationCount { get; set; }
+        Navigation.NavigateTo($"/regulations/{lakeId}");
     }
 }

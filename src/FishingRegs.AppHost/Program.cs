@@ -10,14 +10,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 // For development without Docker, comment out containerized services
 // Uncomment when Docker Desktop is available and you want to use containers
 
-// Add PostgreSQL (supports both local and Azure PostgreSQL)
-// For local development, uses containerized PostgreSQL
-// For Azure, configure connection string in user secrets or app settings
-var postgres = builder.AddPostgres("postgres")
-    .WithDataVolume("fishing-regs-postgres-data")
-    .WithEnvironment("POSTGRES_DB", "FishingRegsDB");
-
-var database = postgres.AddDatabase("FishingRegsDB");
+// Note: PostgreSQL connection is configured via user secrets in the Web project
+// using ConnectionStrings:DefaultConnection for Azure Database for PostgreSQL
 
 // Note: Azure Storage is configured via user secrets in the Web project
 // using ConnectionStrings:AzureStorage rather than Aspire hosting integration
@@ -32,7 +26,6 @@ var seq = builder.AddSeq("seq")
 
 // Add main Blazor Web application
 var blazorApp = builder.AddProject<Projects.FishingRegs_Web>("fishing-regs-web")
-    .WithReference(database)
     .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"));
 
 var app = builder.Build();

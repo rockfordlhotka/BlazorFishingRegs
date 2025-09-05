@@ -1,6 +1,10 @@
 @page "/regulations"
 @page "/regulations/{LakeId:int}"
 @rendermode InteractiveServer
+@using FishingRegs.Data.Repositories
+@using FishingRegs.Data.Models
+@inject IFishingRegulationRepository FishingRegulationRepository
+@inject IWaterBodyRepository WaterBodyRepository
 
 <PageTitle>Fishing Regulations</PageTitle>
 
@@ -173,8 +177,8 @@ else
     private string selectedSpecies = "All Species";
     private bool isLoading = false;
     
-    private List<FishingRegulation> regulations = new();
-    private List<FishingRegulation> filteredRegulations = new();
+    private List<FishingRegs.Data.Models.FishingRegulation> regulations = new();
+    private List<RegulationDisplay> filteredRegulations = new();
     private List<string> availableSpecies = new();
 
     protected override async Task OnParametersSetAsync()
@@ -192,48 +196,42 @@ else
 
         try
         {
-            // Simulate API call - replace with actual service call
-            await Task.Delay(1000);
-            
-            // Mock data for demonstration
-            lakeName = "Lake Superior";
-            lakeCounty = "Cook";
-            lakeState = "Minnesota";
-            lastUpdated = DateTime.Now.AddDays(-7);
-
-            regulations = new List<FishingRegulation>
+            if (LakeId.HasValue)
             {
-                new() 
-                { 
-                    Species = "Lake Trout", 
-                    Season = "Jan 1 - Sep 30", 
-                    BagLimit = "3 fish", 
-                    SizeLimit = "15 inch minimum",
-                    IsInSeason = true,
-                    SpecialNotes = "No more than 1 fish over 28 inches"
-                },
-                new() 
-                { 
-                    Species = "Northern Pike", 
-                    Season = "Year Round", 
-                    BagLimit = "10 fish", 
-                    SizeLimit = "26 inch minimum for 2 fish",
-                    IsInSeason = true,
-                    SpecialNotes = "Special size restrictions apply"
-                },
-                new() 
-                { 
-                    Species = "Walleye", 
-                    Season = "May 15 - Feb 28", 
-                    BagLimit = "6 fish", 
-                    SizeLimit = "15-20 inch protected slot",
-                    IsInSeason = false,
-                    SpecialNotes = "Closed during spawning season"
+                // Load water body information
+                var waterBody = await WaterBodyRepository.GetByIdWithRelatedDataAsync(LakeId.Value);
+                if (waterBody != null)
+                {
+                    lakeName = waterBody.Name;
+                    lakeCounty = waterBody.County?.Name ?? "Unknown";
+                    lakeState = waterBody.State?.Name ?? "Unknown";
                 }
-            };
 
-            availableSpecies = regulations.Select(r => r.Species).Distinct().ToList();
-            FilterRegulations();
+                // Load fishing regulations for this water body
+                var dbRegulations = await FishingRegulationRepository.GetByWaterBodyAsync(LakeId.Value);
+                regulations = dbRegulations.ToList();
+
+                // Convert to display format
+                var displayRegulations = regulations.Select(r => new RegulationDisplay
+                {
+                    Species = r.Species?.CommonName ?? "Unknown Species",
+                    Season = FormatSeason(r),
+                    BagLimit = FormatBagLimit(r),
+                    SizeLimit = FormatSizeLimit(r),
+                    SpecialNotes = FormatSpecialNotes(r),
+                    IsInSeason = IsCurrentlyInSeason(r)
+                }).ToList();
+
+                availableSpecies = displayRegulations.Select(r => r.Species).Distinct().ToList();
+                FilterRegulations();
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log error - in production you'd use ILogger
+            Console.WriteLine($"Error loading regulations: {ex.Message}");
+            regulations = new List<FishingRegs.Data.Models.FishingRegulation>();
+            filteredRegulations = new List<RegulationDisplay>();
         }
         finally
         {
@@ -242,11 +240,92 @@ else
         }
     }
 
+    private string FormatSeason(FishingRegs.Data.Models.FishingRegulation regulation)
+    {
+        if (regulation.SeasonStartMonth.HasValue && regulation.SeasonStartDay.HasValue &&
+            regulation.SeasonEndMonth.HasValue && regulation.SeasonEndDay.HasValue)
+        {
+            var startDate = new DateTime(DateTime.Now.Year, regulation.SeasonStartMonth.Value, regulation.SeasonStartDay.Value);
+            var endDate = new DateTime(DateTime.Now.Year, regulation.SeasonEndMonth.Value, regulation.SeasonEndDay.Value);
+            return $"{startDate:MMM d} - {endDate:MMM d}";
+        }
+        return regulation.IsCatchAndRelease ? "Catch & Release Only" : "Open Season";
+    }
+
+    private string FormatBagLimit(FishingRegs.Data.Models.FishingRegulation regulation)
+    {
+        if (regulation.IsCatchAndRelease)
+            return "Catch & Release";
+        
+        if (regulation.DailyLimit.HasValue)
+            return $"{regulation.DailyLimit} fish daily";
+        
+        return "No limit specified";
+    }
+
+    private string FormatSizeLimit(FishingRegs.Data.Models.FishingRegulation regulation)
+    {
+        var limits = new List<string>();
+        
+        if (regulation.MinimumSizeInches.HasValue)
+            limits.Add($"{regulation.MinimumSizeInches}\" minimum");
+            
+        if (regulation.MaximumSizeInches.HasValue)
+            limits.Add($"{regulation.MaximumSizeInches}\" maximum");
+            
+        if (regulation.ProtectedSlotMinInches.HasValue && regulation.ProtectedSlotMaxInches.HasValue)
+            limits.Add($"Protected slot: {regulation.ProtectedSlotMinInches}\"-{regulation.ProtectedSlotMaxInches}\"");
+        
+        return limits.Any() ? string.Join(", ", limits) : "No size restrictions";
+    }
+
+    private string FormatSpecialNotes(FishingRegs.Data.Models.FishingRegulation regulation)
+    {
+        var notes = new List<string>();
+        
+        if (regulation.IsCatchAndRelease)
+            notes.Add("Catch and release only");
+            
+        // Add other special notes here based on your regulation model
+        
+        return notes.Any() ? string.Join("; ", notes) : "";
+    }
+
+    private bool IsCurrentlyInSeason(FishingRegs.Data.Models.FishingRegulation regulation)
+    {
+        if (!regulation.SeasonStartMonth.HasValue || !regulation.SeasonStartDay.HasValue ||
+            !regulation.SeasonEndMonth.HasValue || !regulation.SeasonEndDay.HasValue)
+            return true; // Assume open if no season specified
+            
+        var now = DateTime.Now;
+        var currentYear = now.Year;
+        var startDate = new DateTime(currentYear, regulation.SeasonStartMonth.Value, regulation.SeasonStartDay.Value);
+        var endDate = new DateTime(currentYear, regulation.SeasonEndMonth.Value, regulation.SeasonEndDay.Value);
+        
+        // Handle seasons that cross year boundaries
+        if (startDate > endDate)
+        {
+            return now >= startDate || now <= endDate;
+        }
+        
+        return now >= startDate && now <= endDate;
+    }
+
     private void FilterRegulations()
     {
+        var displayRegulations = regulations.Select(r => new RegulationDisplay
+        {
+            Species = r.Species?.CommonName ?? "Unknown Species",
+            Season = FormatSeason(r),
+            BagLimit = FormatBagLimit(r),
+            SizeLimit = FormatSizeLimit(r),
+            SpecialNotes = FormatSpecialNotes(r),
+            IsInSeason = IsCurrentlyInSeason(r)
+        });
+
         filteredRegulations = selectedSpecies == "All Species" 
-            ? regulations 
-            : regulations.Where(r => r.Species == selectedSpecies).ToList();
+            ? displayRegulations.ToList()
+            : displayRegulations.Where(r => r.Species == selectedSpecies).ToList();
         StateHasChanged();
     }
 
@@ -256,7 +335,7 @@ else
         FilterRegulations();
     }
 
-    public class FishingRegulation
+    public class RegulationDisplay
     {
         public string Species { get; set; } = "";
         public string Season { get; set; } = "";
