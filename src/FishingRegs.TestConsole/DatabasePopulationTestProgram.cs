@@ -20,7 +20,7 @@ class DatabasePopulationTestProgram
 {
     private const string UserSecretsId = "7d5de198-3095-4d2d-acda-c2631c63e9b6";
 
-    static async Task MainDatabase(string[] args)
+    public static async Task MainDatabase(string[] args)
     {
         Console.WriteLine("Section 3.2 - Fishing Regulations Database Population Test");
         Console.WriteLine("========================================================\n");

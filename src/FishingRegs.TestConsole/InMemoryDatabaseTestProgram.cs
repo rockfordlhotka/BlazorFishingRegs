@@ -22,7 +22,7 @@ class InMemoryDatabaseTestProgram
 {
     private const string UserSecretsId = "7d5de198-3095-4d2d-acda-c2631c63e9b6";
 
-    static async Task Main(string[] args)
+    static async Task MainInMemory(string[] args)
     {
         Console.WriteLine("Section 3.2 - AI Extraction Test (In-Memory Database)");
         Console.WriteLine("====================================================\n");

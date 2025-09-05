@@ -6,8 +6,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.ClientModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using OpenAI.Chat;
 
 namespace FishingRegs.Services.Services;
 
@@ -18,8 +20,7 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
 {
     private readonly ILogger<AiLakeRegulationExtractionService> _logger;
     private readonly IConfiguration _configuration;
-    private readonly AzureOpenAIClient _openAIClient;
-    private readonly string _deploymentName;
+    private readonly ChatClient _chatClient;
 
     public AiLakeRegulationExtractionService(
         ILogger<AiLakeRegulationExtractionService> logger,
@@ -30,9 +31,10 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
         
         var endpoint = _configuration["AzureAI:OpenAI:Endpoint"] ?? throw new InvalidOperationException("AzureAI:OpenAI:Endpoint not configured");
         var apiKey = _configuration["AzureAI:OpenAI:ApiKey"] ?? throw new InvalidOperationException("AzureAI:OpenAI:ApiKey not configured");
-        _deploymentName = _configuration["AzureAI:OpenAI:DeploymentName"] ?? throw new InvalidOperationException("AzureAI:OpenAI:DeploymentName not configured");
+        var deploymentName = _configuration["AzureAI:OpenAI:DeploymentName"] ?? throw new InvalidOperationException("AzureAI:OpenAI:DeploymentName not configured");
         
-        _openAIClient = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
+        var azureOpenAIClient = new AzureOpenAIClient(new Uri(endpoint), new AzureKeyCredential(apiKey));
+        _chatClient = azureOpenAIClient.GetChatClient(deploymentName);
     }
 
     public async Task<AiLakeRegulationExtractionResult> ExtractLakeRegulationsAsync(string regulationsText)
@@ -96,50 +98,132 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
         return result;
     }
 
-    public Task<AiLakeRegulation?> ExtractSingleLakeRegulationAsync(string lakeText, string lakeName, string county = "")
+    public async Task<AiLakeRegulation?> ExtractSingleLakeRegulationAsync(string lakeText, string lakeName, string county = "")
     {
         try
         {
-            // TODO: Implement actual Azure OpenAI API call
-            // For now, create a mock regulation with proper structure for testing
-            var mockRegulation = new AiLakeRegulation
+            _logger.LogInformation("Extracting regulations for lake: {LakeName} using Azure OpenAI", lakeName);
+            
+            // Build the prompt for extracting structured regulation data
+            var prompt = BuildRegulationExtractionPrompt(lakeText, lakeName, county);
+            
+            // Make the API call to Azure OpenAI using the newer ChatClient API
+            var messages = new List<ChatMessage>
             {
-                LakeId = 0,
-                LakeName = lakeName,
-                County = county,
-                Regulations = new AiRegulationDetails
-                {
-                    SpecialRegulations = new List<AiSpecialRegulation>
-                    {
-                        new AiSpecialRegulation
-                        {
-                            Species = "Northern Pike",
-                            RegulationType = AiRegulationType.SizeLimit,
-                            MinimumSize = "24 inches",
-                            Notes = "Minimum length requirement"
-                        },
-                        new AiSpecialRegulation
-                        {
-                            Species = "Walleye",
-                            RegulationType = AiRegulationType.DailyLimit,
-                            DailyLimit = 6,
-                            Notes = "Daily bag limit"
-                        }
-                    },
-                    GeneralNotes = "Standard state regulations apply unless otherwise specified",
-                    IsExperimental = true,
-                    LastUpdated = DateTime.UtcNow
-                }
+                new SystemChatMessage(@"You are an expert at analyzing fishing regulation text and extracting structured data. 
+Extract fishing regulation information from the provided lake text and return it as valid JSON matching the specified schema.
+Focus on species-specific regulations like daily limits, size limits, possession limits, seasonal restrictions, and special rules.
+If no specific regulations are mentioned, return an empty regulations array."),
+                new UserChatMessage(prompt)
             };
 
-            _logger.LogWarning("Azure OpenAI API not yet implemented - returning mock data for lake: {LakeName}", lakeName);
-            return Task.FromResult<AiLakeRegulation?>(mockRegulation);
+            var chatCompletionOptions = new ChatCompletionOptions
+            {
+                Temperature = 0.1f,
+                MaxOutputTokenCount = 1500,
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat()
+            };
+
+            var response = await _chatClient.CompleteChatAsync(messages, chatCompletionOptions);
+            var jsonContent = response.Value.Content[0].Text;
+            
+            _logger.LogInformation("OpenAI response for {LakeName}: {Response}", lakeName, jsonContent);
+
+            // Parse the JSON response with more robust error handling
+            AiLakeRegulation? regulation;
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    Converters = { new RegulationTypeConverter() }
+                };
+                
+                regulation = JsonSerializer.Deserialize<AiLakeRegulation>(jsonContent, options);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to parse JSON response for {LakeName}. JSON: {Json}", lakeName, jsonContent);
+                
+                // Try to create a minimal regulation entry with the raw text
+                regulation = new AiLakeRegulation
+                {
+                    LakeName = lakeName,
+                    County = county,
+                    Regulations = new AiRegulationDetails
+                    {
+                        GeneralNotes = $"Raw regulation text: {jsonContent}",
+                        SpecialRegulations = new List<AiSpecialRegulation>()
+                    }
+                };
+            }
+
+            if (regulation != null)
+            {
+                // Ensure basic properties are set
+                regulation.LakeName = lakeName;
+                regulation.County = county;
+                regulation.Regulations.LastUpdated = DateTime.UtcNow;
+                
+                _logger.LogInformation("Successfully extracted {Count} regulations for lake: {LakeName}", 
+                    regulation.Regulations.SpecialRegulations.Count, lakeName);
+            }
+
+            return regulation;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error extracting regulation for lake: {lakeName}");
-            return Task.FromResult<AiLakeRegulation?>(null);
+            _logger.LogError(ex, "Error extracting regulation for lake: {LakeName}", lakeName);
+            return null;
         }
+    }
+
+    private string BuildRegulationExtractionPrompt(string lakeText, string lakeName, string county)
+    {
+        return $@"Extract fishing regulation information from the following lake regulation text.
+
+Lake Name: {lakeName}
+County: {county}
+
+Regulation Text:
+{lakeText}
+
+Return the data as JSON matching this exact schema:
+{{
+  ""lakeId"": 0,
+  ""lakeName"": ""{lakeName}"",
+  ""county"": ""{county}"",
+  ""regulations"": {{
+    ""specialRegulations"": [
+      {{
+        ""species"": ""Fish Species Name"",
+        ""regulationType"": ""DailyLimit"",
+        ""dailyLimit"": null or number,
+        ""possessionLimit"": null or number,
+        ""minimumSize"": ""size with units"" or null,
+        ""maximumSize"": ""size with units"" or null,
+        ""protectedSlot"": ""size range"" or null,
+        ""seasonInfo"": ""season info"" or null,
+        ""catchAndRelease"": true or false,
+        ""notes"": ""additional regulation details""
+      }}
+    ],
+    ""generalNotes"": ""general notes about the lake regulations"",
+    ""isExperimental"": true or false,
+    ""lastUpdated"": ""{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}""
+  }}
+}}
+
+Important extraction rules:
+1. Extract each fish species as a separate regulation entry
+2. For regulationType, use EXACTLY one of these values: ""DailyLimit"", ""PossessionLimit"", ""SizeLimit"", ""ProtectedSlot"", ""CatchAndRelease"", ""Seasonal"", ""Combined""
+3. Extract numeric values for limits and sizes (include units for sizes)
+4. Note any special conditions or experimental regulations
+5. If no specific regulations are mentioned, return empty specialRegulations array
+6. Be precise with species names (e.g., ""Northern Pike"", ""Walleye"", ""Largemouth Bass"")
+7. Include relevant context in the notes field
+8. Use ""Combined"" as regulationType when multiple regulation types apply to a species";
     }
 
     public List<(string LakeName, string County, string RegulationText)> ParseLakeEntries(string specialRegulationsSection)
@@ -313,5 +397,51 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
             _logger.LogError(ex, "Error extracting special regulations section");
             return "";
         }
+    }
+}
+
+/// <summary>
+/// Custom JSON converter for AiRegulationType enum that handles case-insensitive conversion
+/// </summary>
+public class RegulationTypeConverter : JsonConverter<AiRegulationType>
+{
+    public override AiRegulationType Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            return AiRegulationType.Combined; // Default fallback
+        }
+
+        var value = reader.GetString();
+        if (string.IsNullOrEmpty(value))
+        {
+            return AiRegulationType.Combined;
+        }
+
+        // Try exact match first
+        if (Enum.TryParse<AiRegulationType>(value, true, out var result))
+        {
+            return result;
+        }
+
+        // Try common variations and mappings
+        var normalizedValue = value.ToLowerInvariant().Replace(" ", "").Replace("-", "").Replace("_", "");
+        
+        return normalizedValue switch
+        {
+            "dailylimit" or "daily" => AiRegulationType.DailyLimit,
+            "possessionlimit" or "possession" => AiRegulationType.PossessionLimit,
+            "sizelimit" or "size" or "minsize" or "maxsize" => AiRegulationType.SizeLimit,
+            "protectedslot" or "slotlimit" or "slot" => AiRegulationType.ProtectedSlot,
+            "catchandrelease" or "catchrelease" or "release" => AiRegulationType.CatchAndRelease,
+            "seasonal" or "season" or "closed" => AiRegulationType.Seasonal,
+            "combined" or "multiple" or "special" => AiRegulationType.Combined,
+            _ => AiRegulationType.Combined // Default fallback
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, AiRegulationType value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString());
     }
 }
