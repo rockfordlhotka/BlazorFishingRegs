@@ -41,10 +41,15 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
     - name: Install Aspire workload
-      run: dotnet workload install aspire
+      run: |
+        dotnet workload update
+        dotnet workload install aspire
+        dotnet workload list
       
-    - name: Restore dependencies
-      run: dotnet restore src/FishingRegs.sln
+    - name: Restore dependencies and workloads
+      run: |
+        dotnet workload restore src/FishingRegs.sln
+        dotnet restore src/FishingRegs.sln
       
     - name: Build solution
       run: dotnet build src/FishingRegs.sln --configuration Release

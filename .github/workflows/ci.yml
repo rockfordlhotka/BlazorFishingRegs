@@ -98,6 +98,15 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
         
+    - name: Update workloads
+      run: dotnet workload update
+      
+    - name: Install Aspire workload
+      run: dotnet workload install aspire
+      
+    - name: Restore workloads
+      run: dotnet workload restore
+        
     - name: Restore dependencies
       run: dotnet restore src/FishingRegs.sln
       
@@ -119,6 +128,15 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Update workloads
+      run: dotnet workload update
+      
+    - name: Install Aspire workload
+      run: dotnet workload install aspire
+      
+    - name: Restore workloads
+      run: dotnet workload restore
         
     - name: Restore dependencies
       run: dotnet restore src/FishingRegs.sln
