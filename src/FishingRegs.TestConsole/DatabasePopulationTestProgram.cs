@@ -10,6 +10,7 @@ using FishingRegs.Services.Interfaces;
 using FishingRegs.Data.Extensions;
 using FishingRegs.Data;
 using FishingRegs.Data.Models;
+using Spectre.Console;
 
 namespace FishingRegs.TestConsole;
 
@@ -22,8 +23,12 @@ class DatabasePopulationTestProgram
 
     public static async Task MainDatabase(string[] args)
     {
-        Console.WriteLine("Section 3.2 - Fishing Regulations Database Population Test");
-        Console.WriteLine("========================================================\n");
+        // Create a header panel
+        AnsiConsole.Write(
+            new Panel(new Text("Fishing Regulations Database Population Test", style: "bold"))
+                .BorderColor(Color.Green)
+                .Header("[yellow]Section 3.2[/]")
+                .Padding(1, 0));
 
         // Setup dependency injection with secure configuration
         var services = new ServiceCollection();
@@ -34,10 +39,17 @@ class DatabasePopulationTestProgram
             // Get Key Vault URI from environment or arguments (optional for production)
             var keyVaultUri = Environment.GetEnvironmentVariable("AZURE_KEY_VAULT_URI");
             
-            Console.WriteLine($"Environment: {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}");
-            Console.WriteLine($"Using Key Vault: {!string.IsNullOrWhiteSpace(keyVaultUri)}");
-            Console.WriteLine($"Using User Secrets: {Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Development", StringComparison.OrdinalIgnoreCase) == true}");
-            Console.WriteLine();
+            // Display configuration status
+            var configTable = new Table()
+                .AddColumn("Configuration")
+                .AddColumn("Status");
+            
+            configTable.AddRow("Environment", Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production");
+            configTable.AddRow("Key Vault", !string.IsNullOrWhiteSpace(keyVaultUri) ? "[green]Enabled[/]" : "[red]Disabled[/]");
+            configTable.AddRow("User Secrets", Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")?.Equals("Development", StringComparison.OrdinalIgnoreCase) == true ? "[green]Enabled[/]" : "[red]Disabled[/]");
+            
+            AnsiConsole.Write(configTable);
+            AnsiConsole.WriteLine();
 
             // Register text processing services with secure configuration
             services.AddTextProcessingServicesWithSecureConfig(UserSecretsId, keyVaultUri);
@@ -62,8 +74,8 @@ class DatabasePopulationTestProgram
             if (!File.Exists(testTextPath))
             {
                 logger.LogError("Test text file not found at: {FilePath}", testTextPath);
-                Console.WriteLine($"Test text file not found at: {testTextPath}");
-                Console.WriteLine("Please ensure the fishing_regs.txt file exists in the data folder.");
+                AnsiConsole.MarkupLine($"[red]❌ Test text file not found at:[/] {testTextPath}");
+                AnsiConsole.MarkupLine("[yellow]Please ensure the fishing_regs.txt file exists in the data folder.[/]");
                 return;
             }
 
@@ -95,88 +107,126 @@ class DatabasePopulationTestProgram
             await unitOfWork.RegulationDocuments.AddAsync(sourceDocument);
             await unitOfWork.SaveChangesAsync();
 
-            Console.WriteLine($"✅ Created source document record: {sourceDocument.Id}");
+            AnsiConsole.MarkupLine($"[green]✅ Created source document record:[/] {sourceDocument.Id}");
 
             // Read and process the text file
             var textContent = await File.ReadAllTextAsync(testTextPath);
 
             // Step 1: AI Extraction
-            Console.WriteLine("\n1. Extracting lake regulations using AI...");
-            var extractionResult = await aiExtractionService.ExtractLakeRegulationsAsync(textContent);
+            AnsiConsole.Write(new Rule("[blue]Step 1: AI Extraction[/]"));
+            AnsiConsole.MarkupLine("[blue]Extracting lake regulations using AI...[/]");
+            
+            var extractionResult = await AnsiConsole.Status()
+                .Start("Processing with Azure OpenAI...", async ctx => 
+                {
+                    ctx.Spinner(Spinner.Known.Star);
+                    ctx.SpinnerStyle(Style.Parse("green"));
+                    return await aiExtractionService.ExtractLakeRegulationsAsync(textContent);
+                });
 
             if (!extractionResult.IsSuccess)
             {
-                Console.WriteLine($"❌ AI extraction failed: {extractionResult.ErrorMessage}");
+                AnsiConsole.MarkupLine($"[red]❌ AI extraction failed:[/] {extractionResult.ErrorMessage}");
                 return;
             }
 
-            Console.WriteLine($"✅ AI extraction completed successfully!");
-            Console.WriteLine($"  - Total lakes processed: {extractionResult.TotalLakesProcessed}");
-            Console.WriteLine($"  - Regulations extracted: {extractionResult.TotalRegulationsExtracted}");
-            Console.WriteLine($"  - Processing time: {extractionResult.ProcessingTime.TotalSeconds:F2} seconds");
+            AnsiConsole.MarkupLine("[green]✅ AI extraction completed successfully![/]");
+            
+            // Create results table
+            var resultsTable = new Table()
+                .AddColumn("Metric")
+                .AddColumn("Value");
+            
+            resultsTable.AddRow("Total lakes processed", extractionResult.TotalLakesProcessed.ToString());
+            resultsTable.AddRow("Regulations extracted", extractionResult.TotalRegulationsExtracted.ToString());
+            resultsTable.AddRow("Processing time", $"{extractionResult.ProcessingTime.TotalSeconds:F2} seconds");
+            
+            if (extractionResult.ProcessingWarnings.Any())
+            {
+                resultsTable.AddRow("Warnings", extractionResult.ProcessingWarnings.Count.ToString());
+            }
+            
+            AnsiConsole.Write(resultsTable);
 
             if (extractionResult.ProcessingWarnings.Any())
             {
-                Console.WriteLine($"  - Warnings: {extractionResult.ProcessingWarnings.Count}");
+                AnsiConsole.MarkupLine("\n[yellow]⚠️ Warnings:[/]");
                 foreach (var warning in extractionResult.ProcessingWarnings.Take(3))
                 {
-                    Console.WriteLine($"    ⚠️ {warning}");
+                    AnsiConsole.MarkupLine($"  [yellow]• {warning}[/]");
                 }
             }
 
             // Show sample extracted data
-            Console.WriteLine("\n  Sample extracted regulations:");
+            AnsiConsole.MarkupLine("\n[cyan]📋 Sample extracted regulations:[/]");
             foreach (var lake in extractionResult.ExtractedRegulations.Take(3))
             {
-                Console.WriteLine($"    {lake.LakeName} ({lake.County}): {lake.Regulations.SpecialRegulations.Count} special regulations");
+                AnsiConsole.MarkupLine($"  [cyan]• {lake.LakeName}[/] ([dim]{lake.County}[/]): [green]{lake.Regulations.SpecialRegulations.Count}[/] special regulations");
                 foreach (var regulation in lake.Regulations.SpecialRegulations.Take(2))
                 {
-                    Console.WriteLine($"      - {regulation.Species}: {regulation.RegulationType} ({regulation.Notes})");
+                    AnsiConsole.MarkupLine($"    [dim]- {regulation.Species}: {regulation.RegulationType} ({regulation.Notes})[/]");
                 }
             }
 
             // Step 2: Database Population
-            Console.WriteLine("\n2. Populating database with extracted regulations...");
-            var populationResult = await databasePopulationService.PopulateDatabaseAsync(
-                extractionResult, 
-                sourceDocument.Id, 
-                DateTime.Now.Year);
+            AnsiConsole.Write(new Rule("[blue]Step 2: Database Population[/]"));
+            AnsiConsole.MarkupLine("[blue]Populating database with extracted regulations...[/]");
+            
+            var populationResult = await AnsiConsole.Status()
+                .Start("Writing to database...", async ctx => 
+                {
+                    ctx.Spinner(Spinner.Known.Arc);
+                    ctx.SpinnerStyle(Style.Parse("green"));
+                    return await databasePopulationService.PopulateDatabaseAsync(
+                        extractionResult, 
+                        sourceDocument.Id, 
+                        DateTime.Now.Year);
+                });
 
             if (!populationResult.IsSuccess)
             {
-                Console.WriteLine($"❌ Database population failed: {populationResult.ErrorMessage}");
+                AnsiConsole.MarkupLine($"[red]❌ Database population failed:[/] {populationResult.ErrorMessage}");
                 
                 if (populationResult.ProcessingErrors.Any())
                 {
-                    Console.WriteLine("  Processing errors:");
+                    AnsiConsole.MarkupLine("[red]Processing errors:[/]");
                     foreach (var error in populationResult.ProcessingErrors.Take(5))
                     {
-                        Console.WriteLine($"    ❌ {error}");
+                        AnsiConsole.MarkupLine($"  [red]❌ {error}[/]");
                     }
                 }
                 return;
             }
 
-            Console.WriteLine($"✅ Database population completed successfully!");
-            Console.WriteLine($"  - Total lakes processed: {populationResult.TotalLakesProcessed}");
-            Console.WriteLine($"  - Water bodies created: {populationResult.WaterBodiesCreated}");
-            Console.WriteLine($"  - Water bodies updated: {populationResult.WaterBodiesUpdated}");
-            Console.WriteLine($"  - Regulations created: {populationResult.RegulationsCreated}");
-            Console.WriteLine($"  - Regulations updated: {populationResult.RegulationsUpdated}");
-            Console.WriteLine($"  - Fish species created: {populationResult.FishSpeciesCreated}");
-            Console.WriteLine($"  - Processing time: {populationResult.ProcessingTime.TotalSeconds:F2} seconds");
+            AnsiConsole.MarkupLine("[green]✅ Database population completed successfully![/]");
+            
+            // Create results table for database population
+            var dbResultsTable = new Table()
+                .AddColumn("Metric")
+                .AddColumn("Count");
+            
+            dbResultsTable.AddRow("Total lakes processed", populationResult.TotalLakesProcessed.ToString());
+            dbResultsTable.AddRow("Water bodies created", populationResult.WaterBodiesCreated.ToString());
+            dbResultsTable.AddRow("Water bodies updated", populationResult.WaterBodiesUpdated.ToString());
+            dbResultsTable.AddRow("Regulations created", populationResult.RegulationsCreated.ToString());
+            dbResultsTable.AddRow("Regulations updated", populationResult.RegulationsUpdated.ToString());
+            dbResultsTable.AddRow("Fish species created", populationResult.FishSpeciesCreated.ToString());
+            dbResultsTable.AddRow("Processing time", $"{populationResult.ProcessingTime.TotalSeconds:F2} seconds");
+            
+            AnsiConsole.Write(dbResultsTable);
 
             if (populationResult.ProcessingWarnings.Any())
             {
-                Console.WriteLine($"  - Warnings: {populationResult.ProcessingWarnings.Count}");
+                AnsiConsole.MarkupLine("\n[yellow]⚠️ Processing warnings:[/]");
                 foreach (var warning in populationResult.ProcessingWarnings.Take(3))
                 {
-                    Console.WriteLine($"    ⚠️ {warning}");
+                    AnsiConsole.MarkupLine($"  [yellow]• {warning}[/]");
                 }
             }
 
             // Step 3: Verify database contents
-            Console.WriteLine("\n3. Verifying database contents...");
+            AnsiConsole.Write(new Rule("[blue]Step 3: Database Verification[/]"));
+            AnsiConsole.MarkupLine("[blue]Verifying database contents...[/]");
 
             var totalWaterBodies = await unitOfWork.WaterBodies.CountAsync(wb => wb.IsActive);
             var totalRegulations = await unitOfWork.FishingRegulations.CountAsync(fr => fr.IsActive);
@@ -198,53 +248,73 @@ class DatabasePopulationTestProgram
             }
 
             var sampleSpecies = await unitOfWork.FishSpecies.GetAllAsync();
-            Console.WriteLine("\n  Sample fish species:");
+            AnsiConsole.MarkupLine("\n[cyan]🐟 Sample fish species:[/]");
             foreach (var species in sampleSpecies.Take(5))
             {
                 var regulationCount = await unitOfWork.FishingRegulations.CountAsync(fr => 
                     fr.SpeciesId == species.Id && fr.IsActive);
-                Console.WriteLine($"    {species.CommonName} (ID: {species.Id}): {regulationCount} regulations");
+                AnsiConsole.MarkupLine($"  [cyan]• {species.CommonName}[/] (ID: {species.Id}): [green]{regulationCount}[/] regulations");
             }
 
             // Step 4: Test specific queries
-            Console.WriteLine("\n4. Testing regulation queries...");
+            AnsiConsole.Write(new Rule("[blue]Step 4: Testing Queries[/]"));
+            AnsiConsole.MarkupLine("[blue]Testing regulation queries...[/]");
 
             if (totalWaterBodies > 0 && totalFishSpecies > 0)
             {
                 var firstWaterBody = sampleWaterBodies.First();
                 var regulations = await unitOfWork.FishingRegulations.GetByWaterBodyAsync(firstWaterBody.Id);
                 
-                Console.WriteLine($"✅ Query test for {firstWaterBody.Name}:");
-                Console.WriteLine($"  - Found {regulations.Count()} regulations");
+                AnsiConsole.MarkupLine($"[green]✅ Query test for {firstWaterBody.Name}:[/]");
+                AnsiConsole.MarkupLine($"  [dim]Found {regulations.Count()} regulations[/]");
                 
                 foreach (var regulation in regulations.Take(3))
                 {
-                    Console.WriteLine($"    - Species ID {regulation.SpeciesId}: Daily limit {regulation.DailyLimit}, " +
-                                    $"Min size {regulation.MinimumSizeInches}\"");
+                    AnsiConsole.MarkupLine($"    [dim]- Species ID {regulation.SpeciesId}: Daily limit {regulation.DailyLimit}, " +
+                                    $"Min size {regulation.MinimumSizeInches}\"[/]");
                 }
             }
 
-            Console.WriteLine("\n✅ Section 3.2 test completed successfully!");
-            Console.WriteLine("\n🎉 Text upload -> AI extraction -> Database population pipeline is working!");
+            // Final success message
+            AnsiConsole.Write(
+                new Panel(new Text("🎉 Pipeline Test Completed Successfully! 🎉", style: "bold green"))
+                    .BorderColor(Color.Green)
+                    .Padding(1, 0));
+                    
+            AnsiConsole.MarkupLine("[green]Text upload → AI extraction → Database population pipeline is working![/]");
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("configuration") || ex.Message.Contains("User Secrets") || ex.Message.Contains("Key Vault"))
         {
-            Console.WriteLine($"❌ Configuration Error: {ex.Message}");
-            Console.WriteLine("\n🔐 Secure Configuration Setup Required:");
-            Console.WriteLine("\nFor DEVELOPMENT (User Secrets):");
-            Console.WriteLine("  Run these commands in the FishingRegs.TestConsole directory:");
-            Console.WriteLine($"  dotnet user-secrets set \"AzureAI:OpenAI:Endpoint\" \"https://your-openai.openai.azure.com/\"");
-            Console.WriteLine($"  dotnet user-secrets set \"AzureAI:OpenAI:ApiKey\" \"your-api-key\"");
-            Console.WriteLine($"  dotnet user-secrets set \"AzureAI:OpenAI:DeploymentName\" \"your-deployment-name\"");
-            Console.WriteLine($"  dotnet user-secrets set \"ConnectionStrings:DefaultConnection\" \"your-database-connection-string\"");
+            AnsiConsole.Write(
+                new Panel(new Text("Configuration Error", style: "bold red"))
+                    .BorderColor(Color.Red)
+                    .Padding(1, 0));
+                    
+            AnsiConsole.MarkupLine($"[red]❌ Configuration Error:[/] {ex.Message}");
+            
+            AnsiConsole.Write(
+                new Panel(new Markup("[yellow]🔐 Secure Configuration Setup Required[/]\n\n" +
+                    "[dim]For DEVELOPMENT (User Secrets):[/]\n" +
+                    "[cyan]Run these commands in the FishingRegs.TestConsole directory:[/]\n\n" +
+                    "[grey]dotnet user-secrets set \"AzureAI:OpenAI:Endpoint\" \"https://your-openai.openai.azure.com/\"[/]\n" +
+                    "[grey]dotnet user-secrets set \"AzureAI:OpenAI:ApiKey\" \"your-api-key\"[/]\n" +
+                    "[grey]dotnet user-secrets set \"AzureAI:OpenAI:DeploymentName\" \"your-deployment-name\"[/]\n" +
+                    "[grey]dotnet user-secrets set \"ConnectionStrings:DefaultConnection\" \"your-database-connection-string\"[/]"))
+                .BorderColor(Color.Yellow)
+                .Padding(1, 0));
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Unexpected error: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            AnsiConsole.Write(
+                new Panel(new Text("Unexpected Error", style: "bold red"))
+                    .BorderColor(Color.Red)
+                    .Padding(1, 0));
+                    
+            AnsiConsole.MarkupLine($"[red]❌ Unexpected error:[/] {ex.Message}");
+            AnsiConsole.MarkupLine($"[dim]Stack trace: {ex.StackTrace}[/]");
         }
         
-        Console.WriteLine("\nPress any key to exit...");
+        AnsiConsole.MarkupLine("\n[dim]Press any key to exit...[/]");
         Console.ReadKey();
     }
 

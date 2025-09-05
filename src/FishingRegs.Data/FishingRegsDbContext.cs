@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using FishingRegs.Data.Models;
 using System.Text.Json;
 
@@ -61,36 +62,52 @@ public class FishingRegsDbContext : DbContext
 
     private void ConfigurePostgreSQLFeatures(ModelBuilder modelBuilder)
     {
-        // Configure array types for PostgreSQL
+        // Create value comparer for List<string> collections
+        var stringListComparer = new ValueComparer<List<string>>(
+            (c1, c2) => c1!.SequenceEqual(c2!),
+            c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+            c => c.ToList());
+
+        // Configure array types for PostgreSQL with value comparers
         modelBuilder.Entity<FishingRegulation>()
             .Property(e => e.SpecialRegulations)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
+                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+            .Metadata.SetValueComparer(stringListComparer);
 
         modelBuilder.Entity<FishingRegulation>()
             .Property(e => e.RequiredStamps)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
+                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+            .Metadata.SetValueComparer(stringListComparer);
 
         modelBuilder.Entity<RegulationAuditLog>()
             .Property(e => e.ChangedFields)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
+                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+            .Metadata.SetValueComparer(stringListComparer);
 
         modelBuilder.Entity<CurrentFishingRegulationsView>()
             .Property(e => e.SpecialRegulations)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
+                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+            .Metadata.SetValueComparer(stringListComparer);
 
         modelBuilder.Entity<CurrentFishingRegulationsView>()
             .Property(e => e.RequiredStamps)
             .HasConversion(
                 v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
-                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>());
+                v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+            .Metadata.SetValueComparer(stringListComparer);
+
+        // Configure JSONB for RegulationDocument ExtractedDataJson
+        modelBuilder.Entity<RegulationDocument>()
+            .Property(e => e.ExtractedDataJson)
+            .HasColumnType("jsonb");
 
         // Configure precision for decimal types
         modelBuilder.Entity<WaterBody>()

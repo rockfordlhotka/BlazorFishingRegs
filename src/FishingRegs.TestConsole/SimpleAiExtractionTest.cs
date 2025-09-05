@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using FishingRegs.Services.Extensions;
 using FishingRegs.Services.Interfaces;
+using Spectre.Console;
 
 namespace FishingRegs.TestConsole;
 
@@ -18,8 +19,12 @@ class SimpleAiExtractionTest
 
     public static async Task RunAiExtractionTest(string[] args)
     {
-        Console.WriteLine("Simple AI Extraction Test");
-        Console.WriteLine("========================\n");
+        // Create a header panel
+        AnsiConsole.Write(
+            new Panel(new Text("Simple AI Extraction Test", style: "bold"))
+                .BorderColor(Color.Aqua)
+                .Header("[yellow]No Database Dependencies[/]")
+                .Padding(1, 0));
 
         // Setup dependency injection with minimal configuration
         var services = new ServiceCollection();
@@ -38,20 +43,31 @@ class SimpleAiExtractionTest
 
             if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(deploymentName))
             {
-                Console.WriteLine("❌ Missing Azure OpenAI configuration. Please set up user secrets:");
-                Console.WriteLine("dotnet user-secrets set \"AzureAI:OpenAI:Endpoint\" \"https://your-openai.openai.azure.com/\"");
-                Console.WriteLine("dotnet user-secrets set \"AzureAI:OpenAI:ApiKey\" \"your-api-key\"");
-                Console.WriteLine("dotnet user-secrets set \"AzureAI:OpenAI:DeploymentName\" \"your-deployment-name\"");
-                Console.WriteLine("\nPress any key to exit...");
+                AnsiConsole.Write(
+                    new Panel(new Markup("[red]❌ Missing Azure OpenAI Configuration[/]\n\n" +
+                        "[yellow]Please set up user secrets:[/]\n\n" +
+                        "[grey]dotnet user-secrets set \"AzureAI:OpenAI:Endpoint\" \"https://your-openai.openai.azure.com/\"[/]\n" +
+                        "[grey]dotnet user-secrets set \"AzureAI:OpenAI:ApiKey\" \"your-api-key\"[/]\n" +
+                        "[grey]dotnet user-secrets set \"AzureAI:OpenAI:DeploymentName\" \"your-deployment-name\"[/]"))
+                    .BorderColor(Color.Red)
+                    .Padding(1, 0));
+                    
+                AnsiConsole.MarkupLine("\n[dim]Press any key to exit...[/]");
                 Console.ReadKey();
                 return;
             }
 
-            Console.WriteLine($"✅ Azure OpenAI Configuration found:");
-            Console.WriteLine($"  - Endpoint: {endpoint}");
-            Console.WriteLine($"  - Deployment: {deploymentName}");
-            Console.WriteLine($"  - API Key: {(apiKey.Length > 8 ? apiKey.Substring(0, 8) + "..." : "***")}");
-            Console.WriteLine();
+            // Display configuration status
+            var configTable = new Table()
+                .AddColumn("Configuration")
+                .AddColumn("Value");
+            
+            configTable.AddRow("Azure OpenAI Endpoint", $"[green]{endpoint}[/]");
+            configTable.AddRow("Deployment Name", $"[green]{deploymentName}[/]");
+            configTable.AddRow("API Key", $"[green]{(apiKey.Length > 8 ? apiKey.Substring(0, 8) + "..." : "***")}[/]");
+            
+            AnsiConsole.Write(configTable);
+            AnsiConsole.WriteLine();
 
             // Register only the AI extraction service
             services.AddScoped<IAiLakeRegulationExtractionService, FishingRegs.Services.Services.AiLakeRegulationExtractionService>();
@@ -66,49 +82,71 @@ class SimpleAiExtractionTest
             if (!File.Exists(testTextPath))
             {
                 logger.LogError("Test text file not found at: {FilePath}", testTextPath);
-                Console.WriteLine($"❌ Test text file not found at: {testTextPath}");
+                AnsiConsole.MarkupLine($"[red]❌ Test text file not found at:[/] {testTextPath}");
                 return;
             }
 
             logger.LogInformation("Found test text file at: {FilePath}", testTextPath);
-            Console.WriteLine($"📄 Processing text file: {testTextPath}\n");
+            AnsiConsole.MarkupLine($"[green]📄 Processing text file:[/] {testTextPath}");
 
             // Read the text file
             var textContent = await File.ReadAllTextAsync(testTextPath);
-            Console.WriteLine($"📊 File size: {textContent.Length:N0} characters");
+            AnsiConsole.MarkupLine($"[blue]📊 File size:[/] {textContent.Length:N0} characters");
 
             // Test the AI extraction
-            Console.WriteLine("\n🤖 Starting AI extraction...");
-            var extractionResult = await aiExtractionService.ExtractLakeRegulationsAsync(textContent);
+            AnsiConsole.Write(new Rule("[blue]AI Extraction[/]"));
+            AnsiConsole.MarkupLine("[blue]🤖 Starting AI extraction...[/]");
+            
+            var extractionResult = await AnsiConsole.Status()
+                .Start("Processing with Azure OpenAI...", async ctx => 
+                {
+                    ctx.Spinner(Spinner.Known.Star);
+                    ctx.SpinnerStyle(Style.Parse("green"));
+                    return await aiExtractionService.ExtractLakeRegulationsAsync(textContent);
+                });
 
             if (!extractionResult.IsSuccess)
             {
-                Console.WriteLine($"❌ AI extraction failed: {extractionResult.ErrorMessage}");
+                AnsiConsole.MarkupLine($"[red]❌ AI extraction failed:[/] {extractionResult.ErrorMessage}");
                 return;
             }
 
-            Console.WriteLine($"✅ AI extraction completed successfully!");
-            Console.WriteLine($"  - Total lakes processed: {extractionResult.TotalLakesProcessed}");
-            Console.WriteLine($"  - Regulations extracted: {extractionResult.TotalRegulationsExtracted}");
-            Console.WriteLine($"  - Processing time: {extractionResult.ProcessingTime.TotalSeconds:F2} seconds");
+            AnsiConsole.MarkupLine("[green]✅ AI extraction completed successfully![/]");
+            
+            // Create results table
+            var resultsTable = new Table()
+                .AddColumn("Metric")
+                .AddColumn("Value");
+            
+            resultsTable.AddRow("Total lakes processed", extractionResult.TotalLakesProcessed.ToString());
+            resultsTable.AddRow("Regulations extracted", extractionResult.TotalRegulationsExtracted.ToString());
+            resultsTable.AddRow("Processing time", $"{extractionResult.ProcessingTime.TotalSeconds:F2} seconds");
+            
+            if (extractionResult.ProcessingWarnings.Any())
+            {
+                resultsTable.AddRow("Warnings", extractionResult.ProcessingWarnings.Count.ToString());
+            }
+            
+            AnsiConsole.Write(resultsTable);
 
             if (extractionResult.ProcessingWarnings.Any())
             {
-                Console.WriteLine($"  - Warnings: {extractionResult.ProcessingWarnings.Count}");
+                AnsiConsole.MarkupLine("\n[yellow]⚠️ Processing warnings:[/]");
                 foreach (var warning in extractionResult.ProcessingWarnings.Take(3))
                 {
-                    Console.WriteLine($"    ⚠️ {warning}");
+                    AnsiConsole.MarkupLine($"  [yellow]• {warning}[/]");
                 }
             }
 
             // Show detailed results
-            Console.WriteLine($"\n📋 Extracted {extractionResult.ExtractedRegulations.Count} lake regulations:");
+            AnsiConsole.Write(new Rule("[blue]Extracted Regulations[/]"));
+            AnsiConsole.MarkupLine($"[cyan]📋 Extracted {extractionResult.ExtractedRegulations.Count} lake regulations:[/]");
             
             foreach (var (lake, index) in extractionResult.ExtractedRegulations.Select((l, i) => (l, i)).Take(10))
             {
-                Console.WriteLine($"\n  {index + 1}. {lake.LakeName} ({lake.County} County)");
-                Console.WriteLine($"     Regulations: {lake.Regulations.SpecialRegulations.Count}");
-                Console.WriteLine($"     Experimental: {lake.Regulations.IsExperimental}");
+                AnsiConsole.MarkupLine($"\n  [cyan]{index + 1}. {lake.LakeName}[/] ([dim]{lake.County} County[/])");
+                AnsiConsole.MarkupLine($"     [dim]Regulations: {lake.Regulations.SpecialRegulations.Count}[/]");
+                AnsiConsole.MarkupLine($"     [dim]Experimental: {lake.Regulations.IsExperimental}[/]");
                 
                 foreach (var regulation in lake.Regulations.SpecialRegulations.Take(2))
                 {
@@ -133,38 +171,54 @@ class SimpleAiExtractionTest
 
             if (extractionResult.ExtractedRegulations.Count > 10)
             {
-                Console.WriteLine($"\n  ... and {extractionResult.ExtractedRegulations.Count - 10} more lakes");
+                AnsiConsole.MarkupLine($"\n  [dim]... and {extractionResult.ExtractedRegulations.Count - 10} more lakes[/]");
             }
-
-            Console.WriteLine("\n✅ AI extraction test completed successfully!");
 
             // Test individual lake extraction
             if (extractionResult.ExtractedRegulations.Any())
             {
-                Console.WriteLine("\n🔍 Testing individual lake extraction...");
+                AnsiConsole.Write(new Rule("[blue]Individual Lake Test[/]"));
+                AnsiConsole.MarkupLine("[blue]🔍 Testing individual lake extraction...[/]");
                 var firstLake = extractionResult.ExtractedRegulations.First();
                 var testText = $"{firstLake.LakeName} ({firstLake.County}) Sample regulation text for testing";
                 
-                var singleResult = await aiExtractionService.ExtractSingleLakeRegulationAsync(
-                    testText, firstLake.LakeName, firstLake.County);
+                var singleResult = await AnsiConsole.Status()
+                    .Start("Testing single lake extraction...", async ctx => 
+                    {
+                        ctx.Spinner(Spinner.Known.BouncingBall);
+                        ctx.SpinnerStyle(Style.Parse("green"));
+                        return await aiExtractionService.ExtractSingleLakeRegulationAsync(
+                            testText, firstLake.LakeName, firstLake.County);
+                    });
                 
                 if (singleResult != null)
                 {
-                    Console.WriteLine($"✅ Individual extraction successful for {singleResult.LakeName}");
+                    AnsiConsole.MarkupLine($"[green]✅ Individual extraction successful for {singleResult.LakeName}[/]");
                 }
                 else
                 {
-                    Console.WriteLine("❌ Individual extraction returned null");
+                    AnsiConsole.MarkupLine("[red]❌ Individual extraction returned null[/]");
                 }
             }
+
+            // Final success message
+            AnsiConsole.Write(
+                new Panel(new Text("🎉 AI Extraction Test Completed! 🎉", style: "bold green"))
+                    .BorderColor(Color.Green)
+                    .Padding(1, 0));
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Error: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            AnsiConsole.Write(
+                new Panel(new Text("Error", style: "bold red"))
+                    .BorderColor(Color.Red)
+                    .Padding(1, 0));
+                    
+            AnsiConsole.MarkupLine($"[red]❌ Error:[/] {ex.Message}");
+            AnsiConsole.MarkupLine($"[dim]Stack trace: {ex.StackTrace}[/]");
         }
         
-        Console.WriteLine("\nPress any key to exit...");
+        AnsiConsole.MarkupLine("\n[dim]Press any key to exit...[/]");
         Console.ReadKey();
     }
 

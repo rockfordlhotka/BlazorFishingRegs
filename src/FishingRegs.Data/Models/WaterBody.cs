@@ -26,12 +26,12 @@ public class WaterBody
     public int? CountyId { get; set; }
 
     [Required]
-    [MaxLength(20)]
-    [Column("water_type")]
+    [MaxLength(50)]
+    [Column("type")]
     public string WaterType { get; set; } = "lake";
 
     [MaxLength(50)]
-    [Column("dnr_id")]
+    [Column("dnr_water_id")]
     public string? DnrId { get; set; }
 
     [Column("latitude")]
@@ -46,10 +46,7 @@ public class WaterBody
     public decimal? SurfaceAreaAcres { get; set; }
 
     [Column("max_depth_feet")]
-    public int? MaxDepthFeet { get; set; }
-
-    [Column("description")]
-    public string? Description { get; set; }
+    public decimal? MaxDepthFeet { get; set; }
 
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
