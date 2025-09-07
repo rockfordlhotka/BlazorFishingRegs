@@ -25,7 +25,7 @@ var seq = builder.AddSeq("seq")
 //     .WithHttpEndpoint(port: 7000, name: "http");
 
 // Add main Blazor Web application
-var blazorApp = builder.AddProject("fishing-regs-web", "../FishingRegs.Web")
+var blazorApp = builder.AddProject("fishing-regs-web", "../FishingRegs.Web/FishingRegs.Web.csproj")
     .WithEnvironment("Seq__ServerUrl", seq.GetEndpoint("http"));
 
 var app = builder.Build();
