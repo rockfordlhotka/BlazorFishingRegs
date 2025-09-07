@@ -12,6 +12,26 @@ AnsiConsole.Write(
         .BorderColor(Color.Blue)
         .Padding(1, 0));
 
+// Check if we're running in a non-interactive environment (like CI/automation)
+if (args.Length > 0 && args[0] == "debug-parsing")
+{
+    AnsiConsole.MarkupLine("[green]Running Lake Parsing Debug Test...[/]");
+    await LakeParsingTest.RunParsingTest(args);
+    return;
+}
+
+if (args.Length > 0 && args[0] == "test-dam-lake")
+{
+    await DamLakeParsingTest.RunTest();
+    return;
+}
+
+if (args.Length > 0 && args[0] == "test-little-rabbit")
+{
+    await LittleRabbitLakeTest.RunTest();
+    return;
+}
+
 // Create the menu options
 var choice = AnsiConsole.Prompt(
     new SelectionPrompt<string>()
@@ -23,6 +43,7 @@ var choice = AnsiConsole.Prompt(
             "Full Database Population Test (Batch)", 
             "Streaming Database Population Test (Real-time)",
             "Mock Database Population Test (No OpenAI)",
+            "Lake Parsing Debug Test",
             "Create Database Schema",
             "Exit"
         }));
@@ -48,6 +69,11 @@ switch (choice)
     case "Mock Database Population Test (No OpenAI)":
         AnsiConsole.MarkupLine("[green]Running Mock Database Population Test...[/]");
         await MockDatabasePopulationTest.RunMockDatabaseTest(args);
+        break;
+        
+    case "Lake Parsing Debug Test":
+        AnsiConsole.MarkupLine("[green]Running Lake Parsing Debug Test...[/]");
+        await LakeParsingTest.RunParsingTest(args);
         break;
         
     case "Create Database Schema":

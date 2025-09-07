@@ -17,6 +17,9 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
     private readonly ILogger<RegulationDatabasePopulationService> _logger;
     private readonly IUnitOfWork _unitOfWork;
 
+    // In-memory cache to prevent duplicate species creation within the same processing session
+    private readonly Dictionary<string, FishSpecies> _sessionSpeciesCache = new(StringComparer.OrdinalIgnoreCase);
+
     // Common fish species name mappings for standardization
     private static readonly Dictionary<string, string> SpeciesNameMappings = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -73,6 +76,9 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
 
             _logger.LogInformation($"Starting database population for {extractionResult.ExtractedRegulations.Count} lakes");
 
+            // Clear session cache for new processing run
+            _sessionSpeciesCache.Clear();
+
             // Process each lake regulation
             foreach (var lakeRegulation in extractionResult.ExtractedRegulations)
             {
@@ -109,6 +115,7 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
                 result.TotalLakesProcessed++;
             }
 
+            // Save all changes at the end for batch processing
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             result.IsSuccess = result.ProcessingErrors.Count == 0;
 
@@ -124,6 +131,7 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         {
             stopwatch.Stop();
             result.ProcessingTime = stopwatch.Elapsed;
+            _sessionSpeciesCache.Clear(); // Clean up cache
         }
 
         return result;
@@ -150,6 +158,13 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
             {
                 result.ErrorMessage = $"Could not create or find water body for {lakeRegulation.LakeName}";
                 return result;
+            }
+
+            // IMPORTANT: If this is a new water body (Id = 0), save it now before creating regulations
+            if (result.WaterBody.Id == 0)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                _logger.LogDebug($"Saved new water body {lakeRegulation.LakeName} with ID {result.WaterBody.Id}");
             }
 
             // Get all unique species from regulations
@@ -220,6 +235,18 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
 
             result.IsSuccess = true;
         }
+        catch (ArgumentException ex) when (ex.Message.Contains("Could not extract valid lake name"))
+        {
+            _logger.LogWarning(ex, $"Invalid lake name format: {lakeRegulation.LakeName}");
+            result.ErrorMessage = $"Invalid lake name format: {ex.Message}";
+            result.Warnings.Add($"Skipped processing due to invalid lake name: {lakeRegulation.LakeName}");
+        }
+        catch (Exception ex) when (IsStringTooLongException(ex))
+        {
+            _logger.LogWarning(ex, $"Data too long for database constraints while processing lake: {lakeRegulation.LakeName}");
+            result.ErrorMessage = $"Data validation error: Some extracted data exceeds database field limits";
+            result.Warnings.Add($"Skipped lake due to data length constraints: {lakeRegulation.LakeName}");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Error processing lake: {lakeRegulation.LakeName}");
@@ -227,6 +254,16 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Checks if an exception is related to string length constraints
+    /// </summary>
+    private static bool IsStringTooLongException(Exception ex)
+    {
+        return ex.Message.Contains("value too long for type", StringComparison.OrdinalIgnoreCase) ||
+               ex.Message.Contains("22001") ||
+               (ex.InnerException != null && IsStringTooLongException(ex.InnerException));
     }
 
     public async Task<WaterBody> FindOrCreateWaterBodyAsync(
@@ -238,15 +275,24 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         if (string.IsNullOrWhiteSpace(lakeName))
             throw new ArgumentException("Lake name cannot be empty", nameof(lakeName));
 
+        // Clean and validate the lake name
+        var cleanedLakeName = CleanLakeName(lakeName);
+        
+        if (string.IsNullOrWhiteSpace(cleanedLakeName))
+        {
+            _logger.LogWarning($"Could not extract valid lake name from: {lakeName}");
+            throw new ArgumentException($"Could not extract valid lake name from: {lakeName}", nameof(lakeName));
+        }
+
         // First, try to find existing water body
-        var existingWaterBodies = await _unitOfWork.WaterBodies.SearchByNameAsync(lakeName, cancellationToken);
+        var existingWaterBodies = await _unitOfWork.WaterBodies.SearchByNameAsync(cleanedLakeName, cancellationToken);
         var existingWaterBody = existingWaterBodies.FirstOrDefault(wb => 
             wb.StateId == stateId && 
-            string.Equals(wb.Name, lakeName, StringComparison.OrdinalIgnoreCase));
+            string.Equals(wb.Name, cleanedLakeName, StringComparison.OrdinalIgnoreCase));
 
         if (existingWaterBody != null)
         {
-            _logger.LogDebug($"Found existing water body: {lakeName}");
+            _logger.LogDebug($"Found existing water body: {cleanedLakeName}");
             return existingWaterBody;
         }
 
@@ -271,7 +317,7 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         // Create new water body
         var newWaterBody = new WaterBody
         {
-            Name = lakeName.Trim(),
+            Name = cleanedLakeName,
             StateId = stateId,
             CountyId = countyId,
             WaterType = "lake",
@@ -281,9 +327,148 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         };
 
         var createdWaterBody = await _unitOfWork.WaterBodies.AddAsync(newWaterBody, cancellationToken);
-        _logger.LogInformation($"Created new water body: {lakeName}");
+        _logger.LogInformation($"Created new water body: {cleanedLakeName}");
         
         return createdWaterBody;
+    }
+
+    /// <summary>
+    /// Cleans and extracts the actual lake name from AI-extracted text that may contain regulations
+    /// </summary>
+    private string CleanLakeName(string lakeName)
+    {
+        if (string.IsNullOrWhiteSpace(lakeName))
+            return string.Empty;
+
+        var originalName = lakeName.Trim();
+        
+        // If the name is within the 200 character limit and looks like a proper lake name, return it as-is
+        if (originalName.Length <= 200 && !ContainsRegulationText(originalName))
+        {
+            return originalName;
+        }
+
+        _logger.LogWarning($"Lake name needs cleaning ({originalName.Length} chars): {originalName}");
+
+        // Strategy 1: Look for lake names in ALL CAPS (common pattern in regulation documents)
+        var upperCaseMatches = Regex.Matches(originalName, @"\b[A-Z][A-Z\s]+LAKE\b");
+        if (upperCaseMatches.Count > 0)
+        {
+            var extractedName = upperCaseMatches[0].Value.Trim();
+            if (extractedName.Length <= 200)
+            {
+                _logger.LogInformation($"Extracted lake name from caps: {extractedName}");
+                return extractedName;
+            }
+        }
+
+        // Strategy 2: Look for patterns like "LAKE NAME including..." or "LAKE NAME and outlet..."
+        var includesMatch = Regex.Match(originalName, @"([A-Z][A-Z\s]+LAKE)(?:\s+(?:including|and|plus|with))", RegexOptions.IgnoreCase);
+        if (includesMatch.Success)
+        {
+            var extractedName = includesMatch.Groups[1].Value.Trim();
+            if (extractedName.Length <= 200)
+            {
+                _logger.LogInformation($"Extracted lake name from 'including' pattern: {extractedName}");
+                return extractedName;
+            }
+        }
+
+        // Strategy 3: Look for any mention of "LAKE" and extract surrounding context
+        var lakeMatch = Regex.Match(originalName, @"([A-Z][A-Z\s]*LAKE[A-Z\s]*)", RegexOptions.IgnoreCase);
+        if (lakeMatch.Success)
+        {
+            var extractedName = lakeMatch.Groups[1].Value.Trim();
+            if (extractedName.Length <= 200)
+            {
+                _logger.LogInformation($"Extracted lake name from 'LAKE' pattern: {extractedName}");
+                return extractedName;
+            }
+        }
+
+        // Strategy 4: If text contains regulation keywords, try to extract just the lake name
+        if (ContainsRegulationText(originalName))
+        {
+            var cleanedName = ExtractLakeNameFromRegulationText(originalName);
+            if (!string.IsNullOrEmpty(cleanedName) && cleanedName.Length <= 200)
+            {
+                _logger.LogInformation($"Extracted lake name from regulation text: {cleanedName}");
+                return cleanedName;
+            }
+        }
+
+        // Strategy 5: As a last resort, truncate to 200 characters at a word boundary
+        if (originalName.Length > 200)
+        {
+            var truncated = originalName.Substring(0, 200);
+            var lastSpace = truncated.LastIndexOf(' ');
+            if (lastSpace > 100) // Only truncate at word boundary if we have reasonable length
+            {
+                truncated = truncated.Substring(0, lastSpace);
+            }
+            
+            _logger.LogWarning($"Truncated lake name to: {truncated}");
+            return truncated.Trim();
+        }
+
+        return originalName;
+    }
+
+    /// <summary>
+    /// Checks if the text contains regulation keywords that indicate it's not just a lake name
+    /// </summary>
+    private bool ContainsRegulationText(string text)
+    {
+        var regulationKeywords = new[]
+        {
+            "bass:", "pike:", "trout:", "salmon:", "walleye:", "muskie:", "perch:", "crappie:",
+            "catch-and-release", "possession limit", "daily limit", "size limit",
+            "must be released", "immediately released", "over", "under",
+            "inches", "feet", "pounds"
+        };
+
+        return regulationKeywords.Any(keyword => 
+            text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Attempts to extract a lake name from text that contains both lake name and regulation content
+    /// </summary>
+    private string ExtractLakeNameFromRegulationText(string text)
+    {
+        try
+        {
+            // Look for patterns where lake names appear at the end of regulation text
+            // Example: "bass: catch-and-release only. Northern pike: ... ANNIE BATTLE LAKE including inlet"
+            var endLakePattern = @"([A-Z][A-Z\s]+LAKE)(?:\s+(?:including|and|near).*)?$";
+            var match = Regex.Match(text, endLakePattern, RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                return match.Groups[1].Value.Trim();
+            }
+
+            // Look for lake names that appear before regulation keywords
+            var beforeRegulationPattern = @"([A-Z][A-Z\s]+LAKE)(?:\s+(?:including[^:]*)?)\s*(?:.*?(?:bass|pike|trout|salmon|walleye|muskie|perch|crappie):)";
+            match = Regex.Match(text, beforeRegulationPattern, RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                return match.Groups[1].Value.Trim();
+            }
+
+            // Look for any capitalized lake name in the text
+            var anyLakePattern = @"\b([A-Z][A-Z\s]+LAKE)\b";
+            match = Regex.Match(text, anyLakePattern);
+            if (match.Success)
+            {
+                return match.Groups[1].Value.Trim();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error extracting lake name from regulation text");
+        }
+
+        return "";
     }
 
     public async Task<Dictionary<string, FishSpecies>> FindOrCreateFishSpeciesAsync(
@@ -292,27 +477,38 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
     {
         var result = new Dictionary<string, FishSpecies>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var speciesName in speciesNames.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct())
+        foreach (var originalSpeciesName in speciesNames.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct())
         {
-            var normalizedName = NormalizeFishSpeciesName(speciesName);
+            var normalizedName = NormalizeFishSpeciesName(originalSpeciesName);
             
-            // Try to find existing species in database
-            var existingSpecies = await _unitOfWork.FishSpecies.SearchByNameAsync(normalizedName, cancellationToken);
-            var foundSpecies = existingSpecies.FirstOrDefault(fs => 
-                string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase));
-
-            if (foundSpecies != null)
+            // Check session cache first to avoid duplicate creation within this processing session
+            if (_sessionSpeciesCache.TryGetValue(normalizedName, out var cachedSpecies))
             {
-                result[speciesName] = foundSpecies;
+                result[originalSpeciesName] = cachedSpecies;
                 continue;
             }
 
-            // Check if we already processed this species in this batch
-            if (result.Values.Any(fs => string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase)))
+            // Try to find existing species in database with exact match on normalized name
+            var allSpecies = await _unitOfWork.FishSpecies.GetAllAsync(cancellationToken);
+            var foundSpecies = allSpecies.FirstOrDefault(fs => 
+                string.Equals(fs.CommonName.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+
+            if (foundSpecies != null)
             {
-                var existingInBatch = result.Values.First(fs => 
-                    string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase));
-                result[speciesName] = existingInBatch;
+                result[originalSpeciesName] = foundSpecies;
+                _sessionSpeciesCache[normalizedName] = foundSpecies;
+                continue;
+            }
+
+            // If not found by exact match, try the search method as a fallback
+            var searchResults = await _unitOfWork.FishSpecies.SearchByNameAsync(normalizedName, cancellationToken);
+            var searchedSpecies = searchResults.FirstOrDefault(fs => 
+                string.Equals(fs.CommonName.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+
+            if (searchedSpecies != null)
+            {
+                result[originalSpeciesName] = searchedSpecies;
+                _sessionSpeciesCache[normalizedName] = searchedSpecies;
                 continue;
             }
 
@@ -329,33 +525,52 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
 
                 var createdSpecies = await _unitOfWork.FishSpecies.AddAsync(newSpecies, cancellationToken);
                 
-                // Save immediately to avoid duplicate key violations in batch operations
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                
-                result[speciesName] = createdSpecies;
-                _logger.LogInformation($"Created new fish species: {normalizedName}");
+                // Important: Save immediately and retry on duplicate to handle race conditions
+                try
+                {
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    result[originalSpeciesName] = createdSpecies;
+                    _sessionSpeciesCache[normalizedName] = createdSpecies;
+                    _logger.LogInformation($"Created new fish species: {normalizedName}");
+                }
+                catch (Exception saveEx) when (IsDuplicateKeyException(saveEx))
+                {
+                    // Handle race condition - another process created the species while we were processing
+                    _logger.LogDebug($"Species {normalizedName} was created by another process during save, retrying search");
+                    
+                    // Reload the species that was created by another process
+                    var retrySpecies = await _unitOfWork.FishSpecies.GetAllAsync(cancellationToken);
+                    var foundAfterRetry = retrySpecies.FirstOrDefault(fs => 
+                        string.Equals(fs.CommonName.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (foundAfterRetry != null)
+                    {
+                        result[originalSpeciesName] = foundAfterRetry;
+                        _sessionSpeciesCache[normalizedName] = foundAfterRetry;
+                        _logger.LogDebug($"Successfully found species {normalizedName} after duplicate key resolution");
+                    }
+                    else
+                    {
+                        _logger.LogError($"Failed to find species {normalizedName} after duplicate key error resolution");
+                        throw new InvalidOperationException($"Unable to find or create fish species: {normalizedName}");
+                    }
+                }
             }
-            catch (Exception ex) when (ex.Message.Contains("duplicate key") || ex.Message.Contains("23505"))
+            catch (Exception ex) when (!IsDuplicateKeyException(ex))
             {
-                // Handle race condition - another process created the species
-                _logger.LogDebug($"Species {normalizedName} was created by another process, searching again");
-                var retrySpecies = await _unitOfWork.FishSpecies.SearchByNameAsync(normalizedName, cancellationToken);
-                var foundAfterRetry = retrySpecies.FirstOrDefault(fs => 
-                    string.Equals(fs.CommonName, normalizedName, StringComparison.OrdinalIgnoreCase));
-                
-                if (foundAfterRetry != null)
-                {
-                    result[speciesName] = foundAfterRetry;
-                }
-                else
-                {
-                    _logger.LogError($"Failed to find species {normalizedName} after duplicate key error");
-                    throw;
-                }
+                _logger.LogError(ex, $"Unexpected error creating fish species: {normalizedName}");
+                throw;
             }
         }
 
         return result;
+    }
+
+    private static bool IsDuplicateKeyException(Exception ex)
+    {
+        return ex.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) || 
+               ex.Message.Contains("23505") ||
+               (ex.InnerException != null && IsDuplicateKeyException(ex.InnerException));
     }
 
     public RegulationValidationResult ValidateAndCleanRegulation(AiSpecialRegulation regulation)

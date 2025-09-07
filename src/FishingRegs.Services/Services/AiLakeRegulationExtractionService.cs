@@ -182,8 +182,19 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
         {
             _logger.LogInformation("Extracting regulations for lake: {LakeName} using Azure OpenAI", lakeName);
             
+            // Log the input text for debugging
+            var previewText = lakeText.Length > 200 ? lakeText.Substring(0, 200) + "..." : lakeText;
+            _logger.LogInformation("Input text for {LakeName}: {Text}", lakeName, previewText);
+            
+            // Pre-process the lake text to clean up any formatting issues
+            var cleanedLakeText = PreprocessSingleLakeText(lakeText, lakeName);
+            if (cleanedLakeText != lakeText)
+            {
+                _logger.LogInformation("Preprocessed text for {LakeName}: {Text}", lakeName, cleanedLakeText.Substring(0, Math.Min(200, cleanedLakeText.Length)));
+            }
+            
             // Build the prompt for extracting structured regulation data
-            var prompt = BuildRegulationExtractionPrompt(lakeText, lakeName, county);
+            var prompt = BuildRegulationExtractionPrompt(cleanedLakeText, lakeName, county);
             
             // Make the API call to Azure OpenAI using the newer ChatClient API
             var messages = new List<ChatMessage>
@@ -191,6 +202,8 @@ public class AiLakeRegulationExtractionService : IAiLakeRegulationExtractionServ
                 new SystemChatMessage(@"You are an expert at analyzing fishing regulation text and extracting structured data. 
 Extract fishing regulation information from the provided lake text and return it as valid JSON matching the specified schema.
 Focus on species-specific regulations like daily limits, size limits, possession limits, seasonal restrictions, and special rules.
+The lake name is provided separately and should not be changed. Focus only on extracting regulation content from the text.
+If the regulation text contains the lake name mixed with regulations, ignore the lake name parts and extract only the regulation content.
 If no specific regulations are mentioned, return an empty regulations array."),
                 new UserChatMessage(prompt)
             };
@@ -231,7 +244,7 @@ If no specific regulations are mentioned, return an empty regulations array."),
                     County = county,
                     Regulations = new AiRegulationDetails
                     {
-                        GeneralNotes = $"Raw regulation text: {jsonContent}",
+                        GeneralNotes = $"Raw regulation text: {cleanedLakeText}",
                         SpecialRegulations = new List<AiSpecialRegulation>()
                     }
                 };
@@ -239,13 +252,20 @@ If no specific regulations are mentioned, return an empty regulations array."),
 
             if (regulation != null)
             {
-                // Ensure basic properties are set
-                regulation.LakeName = lakeName;
+                // Ensure basic properties are set correctly
+                regulation.LakeName = lakeName; // Always use the provided lake name
                 regulation.County = county;
                 regulation.Regulations.LastUpdated = DateTime.UtcNow;
                 
                 _logger.LogInformation("Successfully extracted {Count} regulations for lake: {LakeName}", 
                     regulation.Regulations.SpecialRegulations.Count, lakeName);
+                    
+                // Log extracted regulations for debugging
+                foreach (var reg in regulation.Regulations.SpecialRegulations)
+                {
+                    _logger.LogDebug("Extracted regulation: {Species} - {Type} - {Notes}", 
+                        reg.Species, reg.RegulationType, reg.Notes?.Substring(0, Math.Min(50, reg.Notes?.Length ?? 0)));
+                }
             }
 
             return regulation;
@@ -257,6 +277,49 @@ If no specific regulations are mentioned, return an empty regulations array."),
         }
     }
 
+    /// <summary>
+    /// Preprocesses text for a single lake to clean up formatting issues
+    /// </summary>
+    private string PreprocessSingleLakeText(string lakeText, string lakeName)
+    {
+        if (string.IsNullOrWhiteSpace(lakeText))
+            return lakeText;
+            
+        var cleaned = lakeText.Trim();
+        
+        // If the text starts with regulation content and ends with the lake name, this is likely malformed
+        // Example: "Largemouth bass: catch-and-release only. Northern pike: ... ANNIE BATTLE LAKE including..."
+        if (cleaned.Contains(lakeName, StringComparison.OrdinalIgnoreCase))
+        {
+            // Find where the lake name appears in the text
+            var lakeNameIndex = cleaned.IndexOf(lakeName, StringComparison.OrdinalIgnoreCase);
+            
+            // If lake name appears in the middle or end of the text, everything before it is likely regulations
+            if (lakeNameIndex > 0)
+            {
+                var regulationPart = cleaned.Substring(0, lakeNameIndex).Trim();
+                
+                // Check if the regulation part contains fish species (indicator of regulation text)
+                if (Regex.IsMatch(regulationPart, @"\b(bass|pike|trout|salmon|walleye|muskie|perch|crappie|bluegill)\b", RegexOptions.IgnoreCase))
+                {
+                    _logger.LogInformation("Detected malformed text for {LakeName}, extracting regulation part: {RegulationPart}", 
+                        lakeName, regulationPart.Substring(0, Math.Min(100, regulationPart.Length)));
+                    return regulationPart;
+                }
+            }
+        }
+        
+        // Remove any duplicate lake name references from the text
+        var pattern = Regex.Escape(lakeName);
+        cleaned = Regex.Replace(cleaned, pattern, "", RegexOptions.IgnoreCase).Trim();
+        
+        // Clean up any remaining artifacts
+        cleaned = Regex.Replace(cleaned, @"including\s+inlet\s+to\s+\w+.*$", "", RegexOptions.IgnoreCase).Trim();
+        cleaned = Regex.Replace(cleaned, @"and\s+outlet\s+to\s+\w+.*$", "", RegexOptions.IgnoreCase).Trim();
+        
+        return cleaned;
+    }
+
     private string BuildRegulationExtractionPrompt(string lakeText, string lakeName, string county)
     {
         return $@"Extract fishing regulation information from the following lake regulation text.
@@ -266,6 +329,13 @@ County: {county}
 
 Regulation Text:
 {lakeText}
+
+IMPORTANT PARSING INSTRUCTIONS:
+1. The lake name is ""{lakeName}"" - this is definitive and should NOT be changed
+2. The regulation text may contain the lake name mixed with regulations - focus ONLY on the regulation content
+3. If the text appears to be malformed (e.g., regulations mixed with lake names), extract ONLY the regulation parts
+4. Ignore any repetition of the lake name within the regulation text
+5. Focus on fish species, limits, sizes, and restrictions
 
 Return the data as JSON matching this exact schema:
 {{
@@ -293,15 +363,24 @@ Return the data as JSON matching this exact schema:
   }}
 }}
 
-Important extraction rules:
+Extraction rules:
 1. Extract each fish species as a separate regulation entry
-2. For regulationType, use EXACTLY one of these values: ""DailyLimit"", ""PossessionLimit"", ""SizeLimit"", ""ProtectedSlot"", ""CatchAndRelease"", ""Seasonal"", ""Combined""
+2. For regulationType, use EXACTLY one of: ""DailyLimit"", ""PossessionLimit"", ""SizeLimit"", ""ProtectedSlot"", ""CatchAndRelease"", ""Seasonal"", ""Combined""
 3. Extract numeric values for limits and sizes (include units for sizes)
-4. Note any special conditions or experimental regulations
-5. If no specific regulations are mentioned, return empty specialRegulations array
-6. Be precise with species names (e.g., ""Northern Pike"", ""Walleye"", ""Largemouth Bass"")
-7. Include relevant context in the notes field
-8. Use ""Combined"" as regulationType when multiple regulation types apply to a species";
+4. Be precise with species names (e.g., ""Northern Pike"", ""Walleye"", ""Largemouth Bass"")
+5. For catch-and-release regulations, set catchAndRelease to true and regulationType to ""CatchAndRelease""
+6. For size restrictions like ""24-36 inches must be released"", use regulationType ""ProtectedSlot"" and set protectedSlot to ""24-36 inches""
+7. If text mentions possession limits, extract the number and use regulationType ""PossessionLimit""
+8. Include relevant context in the notes field but keep it concise
+9. If the text is unclear or appears to contain the lake name mixed with regulations, focus on extracting the regulation content only
+10. Use ""Combined"" as regulationType when multiple regulation types apply to a species
+
+Example for the given context:
+- ""Largemouth bass: catch-and-release only"" → species: ""Largemouth Bass"", regulationType: ""CatchAndRelease"", catchAndRelease: true
+- ""Northern pike: all from 24-36 inches must be immediately released. Possession limit 3, only 1 over 36 inches"" → 
+  Two entries: 
+  1) species: ""Northern Pike"", regulationType: ""ProtectedSlot"", protectedSlot: ""24-36 inches""
+  2) species: ""Northern Pike"", regulationType: ""PossessionLimit"", possessionLimit: 3, notes: ""only 1 over 36 inches""";
     }
 
     public List<(string LakeName, string County, string RegulationText)> ParseLakeEntries(string specialRegulationsSection)
@@ -310,80 +389,73 @@ Important extraction rules:
 
         try
         {
-            // Pattern to match lake entries: LAKE NAME (County) followed by regulations
-            var lakePattern = @"^([A-Z][A-Z\s\-,&\.''\d]+(?:\s+(?:including|and|near|Chain|chain|CHAIN)\s+[A-Z\s\-,&\.''\d]*)*)\s*\(([^)]+)\)\s+(.+?)(?=^[A-Z][A-Z\s\-,&\.''\d]+\s*\([^)]+\)|$)";
+            // Normalize the text by combining lines and cleaning up spacing
+            var normalizedText = Regex.Replace(specialRegulationsSection, @"\s+", " ").Trim();
             
-            var matches = Regex.Matches(specialRegulationsSection, lakePattern, RegexOptions.Multiline | RegexOptions.Singleline);
-
-            foreach (Match match in matches)
+            // First, let's try to fix common formatting issues where regulations appear before lake names
+            normalizedText = PreprocessRegulationText(normalizedText);
+            
+            // Use manual approach for better compound entry handling
+            // This approach handles cases like "DAM LAKE and connected Lily Lake and Dam Brook (Aitkin)"
+            var expectedPatterns = new[]
             {
-                if (match.Groups.Count >= 4)
+                // Look for compound entries first (more specific patterns)
+                @"([A-Z][^()]*?(?:and connected|including|and|near)[^()]*?)\s*\(([^)]+)\)",
+                // Then look for simple lake entries
+                @"([A-Z][A-Z\s\-,&\.''\d]+)\s*\(([^)]+)\)"
+            };
+
+            var foundLakes = new HashSet<int>(); // Track positions to avoid duplicates
+            
+            foreach (var pattern in expectedPatterns)
+            {
+                var matches = Regex.Matches(normalizedText, pattern);
+                
+                foreach (Match match in matches)
                 {
+                    // Skip if we already processed a lake at this position
+                    if (foundLakes.Contains(match.Index))
+                        continue;
+                        
+                    foundLakes.Add(match.Index);
+                    
                     var lakeName = match.Groups[1].Value.Trim();
                     var county = match.Groups[2].Value.Trim();
-                    var regulationText = match.Groups[3].Value.Trim();
-
-                    // Clean up lake name - remove leading symbols and extra spaces
+                    
+                    // Clean up lake name - remove leading symbols
                     lakeName = Regex.Replace(lakeName, @"^[⁕NEW—]*", "").Trim();
                     
-                    // Skip if this looks like a section header rather than a lake
-                    if (lakeName.Contains("National Wildlife") || lakeName.Contains("Voyageurs") || 
-                        lakeName.Length < 3 || regulationText.Length < 10)
+                    // Skip section headers and very short names
+                    if (lakeName.Contains("National Wildlife") || 
+                        lakeName.Contains("Voyageurs") || 
+                        lakeName.Length < 3)
+                    {
                         continue;
-
-                    lakeEntries.Add((lakeName, county, regulationText));
-                }
-            }
-
-            // If regex approach didn't work well, try a simpler line-by-line approach
-            if (lakeEntries.Count < 10)
-            {
-                lakeEntries.Clear();
-                var lines = specialRegulationsSection.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                
-                string currentLake = "";
-                string currentCounty = "";
-                var currentRegulation = new List<string>();
-
-                foreach (var line in lines)
-                {
-                    var trimmedLine = line.Trim();
+                    }
                     
-                    // Check if this line looks like a lake header
-                    var lakeMatch = Regex.Match(trimmedLine, @"^([A-Z][A-Z\s\-,&\.''\d]+)\s*\(([^)]+)\)\s*(.*)");
-                    if (lakeMatch.Success)
+                    // Extract regulation text for this lake entry
+                    var regulationText = ExtractRegulationTextForLake(normalizedText, match, lakeName, county);
+                    
+                    // Only add if we have meaningful regulation text (lowered threshold for cross-references)
+                    if (!string.IsNullOrWhiteSpace(regulationText) && regulationText.Length >= 5)
                     {
-                        // Save previous lake if we have one
-                        if (!string.IsNullOrWhiteSpace(currentLake) && currentRegulation.Count > 0)
-                        {
-                            lakeEntries.Add((currentLake, currentCounty, string.Join(" ", currentRegulation)));
-                        }
-
-                        // Start new lake
-                        currentLake = Regex.Replace(lakeMatch.Groups[1].Value.Trim(), @"^[⁕NEW—]*", "");
-                        currentCounty = lakeMatch.Groups[2].Value.Trim();
-                        currentRegulation.Clear();
-                        
-                        if (!string.IsNullOrWhiteSpace(lakeMatch.Groups[3].Value))
-                        {
-                            currentRegulation.Add(lakeMatch.Groups[3].Value.Trim());
-                        }
+                        lakeEntries.Add((lakeName, county, regulationText));
                     }
-                    else if (!string.IsNullOrWhiteSpace(currentLake) && !string.IsNullOrWhiteSpace(trimmedLine))
-                    {
-                        // Add to current regulation
-                        currentRegulation.Add(trimmedLine);
-                    }
-                }
-
-                // Add the last lake
-                if (!string.IsNullOrWhiteSpace(currentLake) && currentRegulation.Count > 0)
-                {
-                    lakeEntries.Add((currentLake, currentCounty, string.Join(" ", currentRegulation)));
                 }
             }
+            
+            // Sort by position in text to maintain order
+            lakeEntries = lakeEntries
+                .Select(entry => new { 
+                    Entry = entry, 
+                    Position = normalizedText.IndexOf($"{entry.Item1} ({entry.Item2})", StringComparison.OrdinalIgnoreCase) 
+                })
+                .Where(x => x.Position >= 0)
+                .OrderBy(x => x.Position)
+                .Select(x => x.Entry)
+                .ToList();
 
-            _logger.LogInformation($"Parsed {lakeEntries.Count} lake entries");
+            _logger.LogInformation($"Parsed {lakeEntries.Count} lake entries using improved algorithm");
         }
         catch (Exception ex)
         {
@@ -391,6 +463,133 @@ Important extraction rules:
         }
 
         return lakeEntries;
+    }
+
+    /// <summary>
+    /// Preprocesses regulation text to fix common formatting issues
+    /// </summary>
+    private string PreprocessRegulationText(string text)
+    {
+        try
+        {
+            // Look for cases where regulation text appears before lake names
+            // Pattern: "regulation text. LAKE NAME (County)"
+            var problematicPattern = @"([^.]+(?:bass|pike|trout|salmon|walleye|muskie|perch|crappie)[^.]*\.)\s*([A-Z][A-Z\s\-,&\.''\d]+)\s*\(([^)]+)\)";
+            var matches = Regex.Matches(text, problematicPattern);
+            
+            foreach (Match match in matches.Cast<Match>().Reverse()) // Process in reverse to maintain indices
+            {
+                var regulationText = match.Groups[1].Value.Trim();
+                var lakeName = match.Groups[2].Value.Trim();
+                var county = match.Groups[3].Value.Trim();
+                
+                // Reformat to standard format: "LAKE NAME (County): regulation text"
+                var correctedEntry = $"{lakeName} ({county}): {regulationText}";
+                
+                // Replace the problematic text with the corrected format
+                text = text.Substring(0, match.Index) + correctedEntry + text.Substring(match.Index + match.Length);
+                
+                _logger.LogInformation($"Corrected formatting for {lakeName}: moved regulations after lake name");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error in preprocessing regulation text");
+        }
+        
+        return text;
+    }
+
+    /// <summary>
+    /// Extracts regulation text for a specific lake entry
+    /// </summary>
+    private string ExtractRegulationTextForLake(string normalizedText, Match lakeMatch, string lakeName, string county)
+    {
+        var startPos = lakeMatch.Index + lakeMatch.Length;
+        var endPos = normalizedText.Length;
+        
+        // Look for a colon immediately after the lake name/county which indicates regulation text follows
+        var colonMatch = Regex.Match(normalizedText.Substring(startPos), @"^\s*:\s*");
+        if (colonMatch.Success)
+        {
+            startPos += colonMatch.Length;
+        }
+        
+        // Find the next lake entry to determine where this regulation ends
+        var nextLakePattern = @"[A-Z][A-Z\s\-,&\.''\d]*?\s*\([^)]+\)";
+        var nextMatch = Regex.Match(normalizedText.Substring(startPos), nextLakePattern);
+        if (nextMatch.Success)
+        {
+            endPos = startPos + nextMatch.Index;
+        }
+        
+        var regulationText = "";
+        if (startPos < endPos)
+        {
+            regulationText = normalizedText.Substring(startPos, endPos - startPos).Trim();
+            
+            // Clean up regulation text
+            regulationText = CleanRegulationText(regulationText);
+        }
+        
+        // If we didn't find regulation text after the lake name, check if it appears before
+        if (string.IsNullOrWhiteSpace(regulationText) || regulationText.Length < 10)
+        {
+            regulationText = ExtractRegulationTextBeforeLake(normalizedText, lakeMatch, lakeName);
+        }
+        
+        return regulationText;
+    }
+
+    /// <summary>
+    /// Attempts to extract regulation text that appears before the lake name (for malformed entries)
+    /// </summary>
+    private string ExtractRegulationTextBeforeLake(string normalizedText, Match lakeMatch, string lakeName)
+    {
+        try
+        {
+            // Look backwards from the lake match to find regulation text
+            var textBeforeLake = normalizedText.Substring(0, lakeMatch.Index);
+            
+            // Find the last sentence or regulation that might belong to this lake
+            // Look for fish species names as indicators
+            var fishSpeciesPattern = @"([^.]*(?:bass|pike|trout|salmon|walleye|muskie|perch|crappie|bluegill|sunfish)[^.]*\.)\s*$";
+            var match = Regex.Match(textBeforeLake, fishSpeciesPattern, RegexOptions.IgnoreCase);
+            
+            if (match.Success)
+            {
+                var regulationText = match.Groups[1].Value.Trim();
+                _logger.LogInformation($"Found regulation text before lake name for {lakeName}: {regulationText.Substring(0, Math.Min(50, regulationText.Length))}...");
+                return CleanRegulationText(regulationText);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, $"Error extracting regulation text before lake for {lakeName}");
+        }
+        
+        return "";
+    }
+
+    /// <summary>
+    /// Cleans up regulation text by removing page headers, footers, and other artifacts
+    /// </summary>
+    private string CleanRegulationText(string regulationText)
+    {
+        if (string.IsNullOrWhiteSpace(regulationText))
+            return "";
+            
+        // Remove page headers and footers
+        regulationText = Regex.Replace(regulationText, @"Page \d+.*?888-MINNDNR", "", RegexOptions.IgnoreCase);
+        regulationText = Regex.Replace(regulationText, @"\d+\s+2025 Minnesota Fishing Regulations.*?888-MINNDNR", "", RegexOptions.IgnoreCase);
+        
+        // Remove leading colons or spaces
+        regulationText = Regex.Replace(regulationText, @"^[:,\s]+", "").Trim();
+        
+        // Remove trailing periods that might be sentence artifacts
+        regulationText = regulationText.TrimEnd('.').Trim();
+        
+        return regulationText;
     }
 
     private string ExtractSpecialRegulationsSection(string regulationsText)
