@@ -4,7 +4,7 @@ namespace FishingRegs.TestConsole;
 
 public class LittleRabbitLakeTest
 {
-    public static async Task RunTest()
+    public static Task RunTest()
     {
         AnsiConsole.MarkupLine("[bold blue]=== Little Rabbit Lake Parsing Test ===[/]");
         
@@ -29,6 +29,11 @@ LOON LAKE (Cook) See lakes listed under Cook County.
 LOON LAKE (Itasca) Northern pike: possession limit 2, only one over 26 inches. Walleye: possession limit 2, only one over 20 inches.
 ";
 
+        return RunTestInternal(testSection);
+    }
+
+    private static Task RunTestInternal(string testSection)
+    {
         Console.WriteLine($"Test section ({testSection.Length} chars):");
         Console.WriteLine(testSection);
         Console.WriteLine();
@@ -158,5 +163,7 @@ LOON LAKE (Itasca) Northern pike: possession limit 2, only one over 26 inches. W
         {
             Console.WriteLine("❌ FAILED: LOON LAKE (Itasca) not found!");
         }
+        
+        return Task.CompletedTask;
     }
 }

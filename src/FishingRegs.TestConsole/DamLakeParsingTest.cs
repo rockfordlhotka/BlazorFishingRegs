@@ -10,10 +10,15 @@ namespace FishingRegs.TestConsole;
 /// </summary>
 public static class DamLakeParsingTest
 {
-    public static async Task RunTest()
+    public static Task RunTest()
     {
         Console.WriteLine("=== DAM LAKE Parsing Test ===");
         
+        return RunTestInternal();
+    }
+
+    private static Task RunTestInternal()
+    {
         try
         {
             // Test data containing the DAM LAKE entry
@@ -67,6 +72,8 @@ DEEP LAKE (Ramsey) Closed to fishing.
             Console.WriteLine($"❌ ERROR: {ex.Message}");
             Console.WriteLine(ex.StackTrace);
         }
+        
+        return Task.CompletedTask;
     }
 
     // Simplified version of the parsing logic for testing

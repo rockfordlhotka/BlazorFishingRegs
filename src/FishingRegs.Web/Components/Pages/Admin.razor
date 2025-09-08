@@ -242,72 +242,74 @@
 </div>
 
 @code {
-    private IBrowserFile? selectedFile;
-    private bool isProcessing = false;
-    private string? processError;
-    private bool isDuplicateKeyError = false;
-    private List<string> processResults = new();
-    private List<string> processingWarnings = new();
-    private List<string> streamingProgress = new();
-    
-    private int regulationYear = DateTime.Now.Year;
-    private string processingMode = "batch";
-    
-    // Statistics
-    private int totalLakes = 0;
-    private int totalRegulations = 0;
-    private int totalDocuments = 0;
-    private int totalFishSpecies = 0;
-    
-    // Processing results
-    private int lakesProcessed = 0;
-    private int waterBodiesCreated = 0;
-    private int waterBodiesUpdated = 0;
-    private int regulationsCreated = 0;
-    private int regulationsUpdated = 0;
-    private TimeSpan processingTime = TimeSpan.Zero;
-    
-    // Configuration status
-    private bool isAzureOpenAIConfigured = false;
-    private bool isDatabaseConfigured = false;
-    
-    private List<ActivityLog> recentActivity = new();
+  private IBrowserFile? selectedFile;
+  private bool isProcessing = false;
+  private string? processError;
+  private bool isDuplicateKeyError = false;
+  private List<string> processResults = new();
+  private List<string> processingWarnings = new();
+  private List<string> streamingProgress = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        await CheckConfiguration();
-        await RefreshStats();
-        await LoadRecentActivity();
-    }
+  private int regulationYear = DateTime.Now.Year;
+  private string processingMode = "batch";
 
-    private async Task CheckConfiguration()
+  // Statistics
+  private int totalLakes = 0;
+  private int totalRegulations = 0;
+  private int totalDocuments = 0;
+  private int totalFishSpecies = 0;
+
+  // Processing results
+  private int lakesProcessed = 0;
+  private int waterBodiesCreated = 0;
+  private int waterBodiesUpdated = 0;
+  private int regulationsCreated = 0;
+  private int regulationsUpdated = 0;
+  private TimeSpan processingTime = TimeSpan.Zero;
+
+  // Configuration status
+  private bool isAzureOpenAIConfigured = false;
+  private bool isDatabaseConfigured = false;
+
+  private List<ActivityLog> recentActivity = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    await CheckConfiguration();
+    await RefreshStats();
+    await LoadRecentActivity();
+  }
+
+  private async Task CheckConfiguration()
+  {
+    try
     {
+      // Check if services are properly configured by attempting to access them
+      isAzureOpenAIConfigured = AiExtractionService != null;
+      isDatabaseConfigured = UnitOfWork != null;
+
+      // Try a simple database query to verify connection
+      if (isDatabaseConfigured)
+      {
         try
         {
-            // Check if services are properly configured by attempting to access them
-            isAzureOpenAIConfigured = AiExtractionService != null;
-            isDatabaseConfigured = UnitOfWork != null;
-            
-            // Try a simple database query to verify connection
-            if (isDatabaseConfigured)
-            {
-                try
-                {
-                    await UnitOfWork.WaterBodies.CountAsync();
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogWarning(ex, "Database connection test failed");
-                    isDatabaseConfigured = false;
-                }
-            }
+          if (UnitOfWork is null)
+            throw new NullReferenceException(nameof(UnitOfWork));
+            await UnitOfWork.WaterBodies.CountAsync();
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Configuration check failed");
-            isAzureOpenAIConfigured = false;
+            Logger.LogWarning(ex, "Database connection test failed");
             isDatabaseConfigured = false;
         }
+      }
+      }
+      catch (Exception ex)
+      {
+          Logger.LogWarning(ex, "Configuration check failed");
+          isAzureOpenAIConfigured = false;
+          isDatabaseConfigured = false;
+      }
     }
 
     private void HandleFileSelected(InputFileChangeEventArgs e)
@@ -507,15 +509,12 @@
                     sourceDocument.Id, 
                     regulationYear);
 
-                if (lakeResult.IsSuccess)
+                if (lakeResult.IsSuccess && lakeResult.WaterBody != null)
                 {
-                    if (lakeResult.WaterBody != null)
-                    {
-                        // Note: WaterBody.Id will now be > 0 after the fix since it gets saved in PopulateSingleLakeAsync
-                        // Check if this is a newly created water body based on the service's internal tracking
-                        // For simplicity, we'll track based on the lakeResult statistics
-                        waterBodiesCreated++; // This will be corrected by using the proper result statistics
-                    }
+                    // Note: WaterBody.Id will now be > 0 after the fix since it gets saved in PopulateSingleLakeAsync
+                    // Check if this is a newly created water body based on the service's internal tracking
+                    // For simplicity, we'll track based on the lakeResult statistics
+                    waterBodiesCreated++; // This will be corrected by using the proper result statistics
 
                     regulationsCreated += lakeResult.CreatedRegulations.Count;
                     regulationsUpdated += lakeResult.UpdatedRegulations.Count;
@@ -528,8 +527,8 @@
                 }
                 else
                 {
-                    streamingProgress.Add($"? {lakeRegulation.LakeName}: {lakeResult.ErrorMessage}");
-                    processingWarnings.Add($"{lakeRegulation.LakeName}: {lakeResult.ErrorMessage}");
+                    streamingProgress.Add($"? {lakeRegulation.LakeName}: {lakeResult.ErrorMessage ?? "Unknown error"}");
+                    processingWarnings.Add($"{lakeRegulation.LakeName}: {lakeResult.ErrorMessage ?? "Unknown error"}");
                 }
 
                 processingWarnings.AddRange(lakeResult.Warnings);
@@ -600,7 +599,7 @@
         }
     }
 
-    private async Task AddActivityLog(string action, string description)
+    private Task AddActivityLog(string action, string description)
     {
         recentActivity.Insert(0, new ActivityLog
         {
@@ -614,6 +613,8 @@
         {
             recentActivity = recentActivity.Take(20).ToList();
         }
+        
+        return Task.CompletedTask;
     }
 
     public class ActivityLog
