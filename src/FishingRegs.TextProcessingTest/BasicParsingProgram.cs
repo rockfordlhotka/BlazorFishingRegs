@@ -69,7 +69,7 @@ public class BasicParsingApplication
         try
         {
             // Test with the fishing regulations text file
-            var textPath = @"s:\src\rdl\BlazorAI-spec\data\fishing_regs.txt";
+            var textPath = @"s:\src\rdl\BlazorFishingRegs\data\fishing_regs.txt";
             
             if (!File.Exists(textPath))
             {
@@ -247,7 +247,7 @@ public class BasicParsingApplication
     {
         try
         {
-            var outputDirectory = @"s:\src\rdl\BlazorAI-spec\data\basic-parsing-results";
+            var outputDirectory = @"s:\src\rdl\BlazorFishingRegs\data\basic-parsing-results";
             Directory.CreateDirectory(outputDirectory);
 
             Console.WriteLine($"\nSaving {lakeEntries.Count} basic parsing results...");

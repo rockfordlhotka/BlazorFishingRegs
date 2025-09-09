@@ -131,7 +131,7 @@ public static class MockDatabasePopulationTest
     {
         try
         {
-            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorAI-spec\data\extracted-regulations", fileName);
+            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorFishingRegs\data\extracted-regulations", fileName);
 
             if (!File.Exists(jsonPath))
             {
@@ -159,7 +159,7 @@ public static class MockDatabasePopulationTest
     {
         try
         {
-            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorAI-spec\data\extracted-regulations", fileName);
+            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorFishingRegs\data\extracted-regulations", fileName);
 
             if (!File.Exists(jsonPath))
             {

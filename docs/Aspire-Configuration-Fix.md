@@ -67,13 +67,13 @@ Enhanced `appsettings.json` with dashboard configuration:
 
 ### **Method 1: Using Updated Program.cs**
 ```powershell
-cd "s:\src\rdl\BlazorAI-spec\src\FishingRegs.AppHost"
+cd "s:\src\rdl\BlazorFishingRegs\src\FishingRegs.AppHost"
 dotnet run
 ```
 
 ### **Method 2: Environment Variables in PowerShell**
 ```powershell
-cd "s:\src\rdl\BlazorAI-spec"
+cd "s:\src\rdl\BlazorFishingRegs"
 $env:ASPNETCORE_URLS="https://localhost:15888;http://localhost:15889"
 $env:DOTNET_DASHBOARD_OTLP_ENDPOINT_URL="https://localhost:16001"
 $env:ASPIRE_ALLOW_UNSECURED_TRANSPORT="true"
@@ -82,7 +82,7 @@ dotnet run --project "src\FishingRegs.AppHost\FishingRegs.AppHost.csproj"
 
 ### **Method 3: Main Setup Script**
 ```powershell
-cd "s:\src\rdl\BlazorAI-spec"
+cd "s:\src\rdl\BlazorFishingRegs"
 .\src\scripts\setup.ps1
 ```
 

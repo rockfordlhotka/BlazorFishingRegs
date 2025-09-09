@@ -1,0 +1,20 @@
+{
+  "profiles": {
+    "FishingRegs.TestConsole": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development"
+      },
+      "workingDirectory": "$(ProjectDir)"
+    },
+    "Debug": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTNET_ENVIRONMENT": "Development"
+      },
+      "workingDirectory": "$(ProjectDir)"
+    }
+  }
+}

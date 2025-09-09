@@ -44,7 +44,7 @@ class DatabaseSchemaCreator
             AnsiConsole.MarkupLine($"[dim]Connection: {MaskConnectionString(connectionString)}[/]");
 
             // Read the schema SQL file (Azure-compatible version)
-            var schemaPath = @"s:\src\rdl\BlazorAI-spec\src\FishingRegs.TestConsole\azure-schema.sql";
+            var schemaPath = @"s:\src\rdl\BlazorFishingRegs\src\FishingRegs.TestConsole\azure-schema.sql";
             
             if (!File.Exists(schemaPath))
             {

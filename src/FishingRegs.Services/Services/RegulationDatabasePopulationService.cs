@@ -37,6 +37,7 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         { "muskie", "Muskellunge" },
         { "muskellunge", "Muskellunge" },
         { "brook trout", "Brook Trout" },
+        { "stream trout", "Brook Trout" }, // Fix for Stream Trout issue
         { "brown trout", "Brown Trout" },
         { "rainbow trout", "Rainbow Trout" },
         { "steelhead", "Steelhead" },
@@ -224,12 +225,35 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
                     UpdateFishingRegulationFromAi(existingRegulation, validationResult.CleanedRegulation);
                     existingRegulation.UpdatedAt = DateTimeOffset.UtcNow;
                     result.UpdatedRegulations.Add(existingRegulation);
+                    _logger.LogDebug($"Updated existing regulation for {fishSpecies.CommonName} in {result.WaterBody.Name}");
                 }
                 else
                 {
-                    // Add new regulation
-                    await _unitOfWork.FishingRegulations.AddAsync(fishingRegulation, cancellationToken);
-                    result.CreatedRegulations.Add(fishingRegulation);
+                    // Double-check: Also verify this regulation isn't already in our current batch
+                    var alreadyInBatch = result.CreatedRegulations.Any(cr => 
+                        cr.WaterBodyId == result.WaterBody.Id && 
+                        cr.SpeciesId == fishSpecies.Id && 
+                        cr.RegulationYear == regulationYear);
+
+                    if (!alreadyInBatch)
+                    {
+                        try
+                        {
+                            // Add new regulation with individual duplicate key handling
+                            await _unitOfWork.FishingRegulations.AddAsync(fishingRegulation, cancellationToken);
+                            result.CreatedRegulations.Add(fishingRegulation);
+                            _logger.LogDebug($"Added new regulation for {fishSpecies.CommonName} in {result.WaterBody.Name}");
+                        }
+                        catch (Exception ex) when (IsDuplicateKeyException(ex))
+                        {
+                            _logger.LogDebug($"Duplicate regulation detected during add for {fishSpecies.CommonName} in {result.WaterBody.Name}, skipping");
+                            // Continue processing other regulations without failing
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug($"Regulation for {fishSpecies.CommonName} in {result.WaterBody.Name} already in current batch, skipping");
+                    }
                 }
             }
 

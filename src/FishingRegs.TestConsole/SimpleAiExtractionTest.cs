@@ -77,7 +77,7 @@ class SimpleAiExtractionTest
             var aiExtractionService = serviceProvider.GetRequiredService<IAiLakeRegulationExtractionService>();
 
             // Test with the fishing regulations text file
-            var testTextPath = @"s:\src\rdl\BlazorAI-spec\data\fishing_regs.txt";
+            var testTextPath = @"s:\src\rdl\BlazorFishingRegs\data\fishing_regs.txt";
             
             if (!File.Exists(testTextPath))
             {
