@@ -5,12 +5,13 @@ using Spectre.Console;
 // Simplified FishingRegs Test Console
 // ========================================
 // This console application provides essential testing capabilities:
-// 1. Comprehensive Data Ingestion - NEW! AI extracts ALL data systematically
-// 2. Streaming Data Ingestion - Real-time AI extraction and database population
-// 3. Mock Data Population Test - Database population testing without AI calls
-// 4. Database Schema Creation - Setup database structure
-// 5. Clear Database - Remove all data from database tables
-// 6. Water Body Extraction Diagnostic - DEBUG: Analyze extraction issues
+// 1. Regex Fishing Regulations Extraction - NEW! Extract complete fishing regulations using regex
+// 2. Comprehensive Data Ingestion - AI extracts ALL data systematically
+// 3. Streaming Data Ingestion - Real-time AI extraction and database population
+// 4. Mock Data Population Test - Database population testing without AI calls
+// 5. Database Schema Creation - Setup database structure
+// 6. Clear Database - Remove all data from database tables
+// 7. Water Body Extraction Diagnostic - DEBUG: Analyze extraction issues
 // ========================================
 
 // Display the application header
@@ -20,7 +21,7 @@ AnsiConsole.Write(
         .Color(Color.Blue));
 
 AnsiConsole.Write(
-    new Panel(new Text("Test Console Application - Enhanced with Comprehensive AI", style: "bold"))
+    new Panel(new Text("Test Console Application - Enhanced with Comprehensive Regex Extraction", style: "bold"))
         .BorderColor(Color.Blue)
         .Padding(1, 0));
 
@@ -28,13 +29,15 @@ AnsiConsole.Write(
 var choice = AnsiConsole.Prompt(
     new SelectionPrompt<string>()
         .Title("Choose a [green]test option[/]:")
-        .PageSize(10)
+        .PageSize(12)
         .MoreChoicesText("[grey](Move up and down to reveal more options)[/]")
         .AddChoices(new[] {
             "🎯 Regex Water Body Extraction (SIMPLE & FAST)",
             "🏗️ Regex Database Population (SIMPLE & RELIABLE)",
+            "🎣 Regex Fishing Regulations Extraction (NEW! COMPREHENSIVE)",
             "🚨 Regex REAL Database Population (PRODUCTION!)",
-            "🔥 Comprehensive Data Ingestion (NEW!)",
+            "🎣 Regex REAL Fishing Regulations Population (PRODUCTION!)",
+            "🔥 Comprehensive Data Ingestion (AI)",
             "Streaming Data Ingestion (Real-time)",
             "Mock Data Population Test (No AI)",
             "Create Database Schema",
@@ -56,12 +59,22 @@ switch (choice)
         await RegexDatabasePopulation.RunRegexDatabasePopulation(args);
         break;
 
+    case "🎣 Regex Fishing Regulations Extraction (NEW! COMPREHENSIVE)":
+        AnsiConsole.MarkupLine("[blue]Running Regex Fishing Regulations Extraction...[/]");
+        await RegexFishingRegulationsExtraction.RunRegexFishingRegulationsExtraction(args);
+        break;
+
     case "🚨 Regex REAL Database Population (PRODUCTION!)":
         AnsiConsole.MarkupLine("[red]Running Regex REAL Database Population...[/]");
         await RegexRealDatabasePopulation.RunRegexRealDatabasePopulation(args);
         break;
         
-    case "🔥 Comprehensive Data Ingestion (NEW!)":
+    case "🎣 Regex REAL Fishing Regulations Population (PRODUCTION!)":
+        AnsiConsole.MarkupLine("[red]Running Regex REAL Fishing Regulations Population...[/]");
+        await RegexRealFishingRegulationsPopulation.RunRegexRealFishingRegulationsPopulation(args);
+        break;
+        
+    case "🔥 Comprehensive Data Ingestion (AI)":
         AnsiConsole.MarkupLine("[green]Running Comprehensive Data Ingestion...[/]");
         await ComprehensiveDataIngestionProgram.RunComprehensiveIngestion(args);
         break;
