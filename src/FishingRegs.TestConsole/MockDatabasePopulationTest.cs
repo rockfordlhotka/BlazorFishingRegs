@@ -12,8 +12,8 @@ using System.Text.Json;
 namespace FishingRegs.TestConsole;
 
 /// <summary>
-/// Test program for database population using pre-extracted or mock data
-/// This allows testing without making OpenAI API calls every time
+/// Mock database population test - allows testing without making OpenAI API calls
+/// This uses pre-extracted or generated mock data to test the database population functionality
 /// </summary>
 public static class MockDatabasePopulationTest
 {
@@ -21,7 +21,8 @@ public static class MockDatabasePopulationTest
     {
         try
         {
-            AnsiConsole.MarkupLine("[blue]Mock Database Population Test[/]");
+            AnsiConsole.MarkupLine("[blue]Mock Database Population Test (No AI)[/]");
+            AnsiConsole.MarkupLine("[dim]Testing database population without OpenAI API calls[/]");
             AnsiConsole.WriteLine();
 
             // Choose data source
@@ -131,7 +132,7 @@ public static class MockDatabasePopulationTest
     {
         try
         {
-            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorAI-spec\data\extracted-regulations", fileName);
+            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorFishingRegs\data\extracted-regulations", fileName);
 
             if (!File.Exists(jsonPath))
             {
@@ -159,7 +160,7 @@ public static class MockDatabasePopulationTest
     {
         try
         {
-            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorAI-spec\data\extracted-regulations", fileName);
+            var jsonPath = Path.Combine(@"s:\src\rdl\BlazorFishingRegs\data\extracted-regulations", fileName);
 
             if (!File.Exists(jsonPath))
             {
