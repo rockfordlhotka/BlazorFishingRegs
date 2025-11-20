@@ -39,6 +39,7 @@ var choice = AnsiConsole.Prompt(
         .PageSize(10)
         .MoreChoicesText("[grey](Move up and down to reveal more options)[/]")
         .AddChoices(new[] {
+            "Parse Special Regulations File",
             "Simple AI Extraction Test",
             "Full Database Population Test (Batch)", 
             "Streaming Database Population Test (Real-time)",
@@ -51,6 +52,11 @@ var choice = AnsiConsole.Prompt(
 // Handle the selection
 switch (choice)
 {
+    case "Parse Special Regulations File":
+        AnsiConsole.MarkupLine("[green]Running Special Regulations Parser...[/]");
+        await SpecialRegulationsParser.RunParser(args);
+        break;
+        
     case "Simple AI Extraction Test":
         AnsiConsole.MarkupLine("[green]Running Simple AI Extraction Test...[/]");
         await SimpleAiExtractionTest.RunAiExtractionTest(args);
