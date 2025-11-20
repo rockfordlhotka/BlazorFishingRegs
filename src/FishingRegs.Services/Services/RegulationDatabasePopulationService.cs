@@ -20,6 +20,9 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
     // In-memory cache to prevent duplicate species creation within the same processing session
     private readonly Dictionary<string, FishSpecies> _sessionSpeciesCache = new(StringComparer.OrdinalIgnoreCase);
 
+    // Batch-level tracking to prevent duplicate regulations across the entire batch
+    private readonly HashSet<(int WaterBodyId, int SpeciesId, int RegulationYear)> _batchRegulationKeys = new();
+
     // Common fish species name mappings for standardization
     private static readonly Dictionary<string, string> SpeciesNameMappings = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -77,8 +80,9 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
 
             _logger.LogInformation($"Starting database population for {extractionResult.ExtractedRegulations.Count} lakes");
 
-            // Clear session cache for new processing run
+            // Clear session caches for new processing run
             _sessionSpeciesCache.Clear();
+            _batchRegulationKeys.Clear();
 
             // Process each lake regulation
             foreach (var lakeRegulation in extractionResult.ExtractedRegulations)
@@ -133,6 +137,7 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
             stopwatch.Stop();
             result.ProcessingTime = stopwatch.Elapsed;
             _sessionSpeciesCache.Clear(); // Clean up cache
+            _batchRegulationKeys.Clear(); // Clean up batch tracking
         }
 
         return result;
@@ -185,34 +190,45 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
             // Find or create fish species
             var fishSpeciesMap = await FindOrCreateFishSpeciesAsync(speciesNames, cancellationToken);
 
-            // Process each special regulation
-            foreach (var specialRegulation in lakeRegulation.Regulations.SpecialRegulations)
+            // Group special regulations by species to combine them into single FishingRegulation records
+            var regulationsBySpecies = lakeRegulation.Regulations.SpecialRegulations
+                .Where(sr => !string.IsNullOrWhiteSpace(sr.Species))
+                .GroupBy(sr => sr.Species, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var speciesGroup in regulationsBySpecies)
             {
-                var validationResult = ValidateAndCleanRegulation(specialRegulation);
+                var speciesName = speciesGroup.Key;
                 
-                if (!validationResult.IsValid)
+                if (!fishSpeciesMap.TryGetValue(speciesName, out var fishSpecies))
                 {
-                    result.Warnings.AddRange(validationResult.ValidationErrors);
+                    result.Warnings.Add($"Could not find fish species for: {speciesName}");
                     continue;
                 }
 
-                result.Warnings.AddRange(validationResult.ValidationWarnings);
-
-                if (!fishSpeciesMap.TryGetValue(specialRegulation.Species, out var fishSpecies))
+                // Validate and clean all regulations for this species
+                var cleanedRegulations = new List<AiSpecialRegulation>();
+                foreach (var specialRegulation in speciesGroup)
                 {
-                    result.Warnings.Add($"Could not find fish species for: {specialRegulation.Species}");
+                    var validationResult = ValidateAndCleanRegulation(specialRegulation);
+                    
+                    if (!validationResult.IsValid)
+                    {
+                        result.Warnings.AddRange(validationResult.ValidationErrors);
+                        continue;
+                    }
+
+                    result.Warnings.AddRange(validationResult.ValidationWarnings);
+                    cleanedRegulations.Add(validationResult.CleanedRegulation);
+                }
+
+                if (!cleanedRegulations.Any())
+                {
+                    result.Warnings.Add($"No valid regulations found for {speciesName} in {lakeRegulation.LakeName}");
                     continue;
                 }
 
-                // Create fishing regulation record
-                var fishingRegulation = CreateFishingRegulationFromAi(
-                    validationResult.CleanedRegulation,
-                    result.WaterBody.Id,
-                    fishSpecies.Id,
-                    sourceDocumentId,
-                    regulationYear);
-
-                // Check if a similar regulation already exists
+                // Check if a regulation already exists for this water body, species, and year
                 var existingRegulations = await _unitOfWork.FishingRegulations
                     .GetByWaterBodyAndSpeciesAsync(result.WaterBody.Id, fishSpecies.Id, cancellationToken);
 
@@ -221,15 +237,26 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
 
                 if (existingRegulation != null)
                 {
-                    // Update existing regulation
-                    UpdateFishingRegulationFromAi(existingRegulation, validationResult.CleanedRegulation);
+                    // Update existing regulation by combining all the cleaned regulations
+                    UpdateFishingRegulationFromMultipleAi(existingRegulation, cleanedRegulations);
                     existingRegulation.UpdatedAt = DateTimeOffset.UtcNow;
                     result.UpdatedRegulations.Add(existingRegulation);
                     _logger.LogDebug($"Updated existing regulation for {fishSpecies.CommonName} in {result.WaterBody.Name}");
                 }
                 else
                 {
-                    // Double-check: Also verify this regulation isn't already in our current batch
+                    // Create the unique key for this regulation
+                    var regulationKey = (result.WaterBody.Id, fishSpecies.Id, regulationYear);
+                    
+                    // Check if we've already added this regulation in the current batch
+                    if (_batchRegulationKeys.Contains(regulationKey))
+                    {
+                        _logger.LogDebug($"Regulation for {fishSpecies.CommonName} in {result.WaterBody.Name} already exists in current batch, skipping");
+                        result.Warnings.Add($"Duplicate regulation detected for {fishSpecies.CommonName} in {result.WaterBody.Name} - using first occurrence");
+                        continue;
+                    }
+                    
+                    // Double-check: Also verify this regulation isn't already in our current lake's batch
                     var alreadyInBatch = result.CreatedRegulations.Any(cr => 
                         cr.WaterBodyId == result.WaterBody.Id && 
                         cr.SpeciesId == fishSpecies.Id && 
@@ -239,9 +266,21 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
                     {
                         try
                         {
+                            // Create a single fishing regulation record combining all regulations for this species
+                            var fishingRegulation = CreateFishingRegulationFromMultipleAi(
+                                cleanedRegulations,
+                                result.WaterBody.Id,
+                                fishSpecies.Id,
+                                sourceDocumentId,
+                                regulationYear);
+
                             // Add new regulation with individual duplicate key handling
                             await _unitOfWork.FishingRegulations.AddAsync(fishingRegulation, cancellationToken);
                             result.CreatedRegulations.Add(fishingRegulation);
+                            
+                            // Track this regulation in our batch to prevent duplicates
+                            _batchRegulationKeys.Add(regulationKey);
+                            
                             _logger.LogDebug($"Added new regulation for {fishSpecies.CommonName} in {result.WaterBody.Name}");
                         }
                         catch (Exception ex) when (IsDuplicateKeyException(ex))
@@ -252,7 +291,7 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
                     }
                     else
                     {
-                        _logger.LogDebug($"Regulation for {fishSpecies.CommonName} in {result.WaterBody.Name} already in current batch, skipping");
+                        _logger.LogDebug($"Regulation for {fishSpecies.CommonName} in {result.WaterBody.Name} already in current lake batch, skipping");
                     }
                 }
             }
@@ -669,8 +708,12 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
         return Regex.Replace(sizeString.Trim(), @"\s+", " ");
     }
 
-    private FishingRegulation CreateFishingRegulationFromAi(
-        AiSpecialRegulation aiRegulation,
+    /// <summary>
+    /// Creates a fishing regulation from multiple AI special regulations for the same species.
+    /// This combines size limits, bag limits, and other regulations into a single record.
+    /// </summary>
+    private FishingRegulation CreateFishingRegulationFromMultipleAi(
+        List<AiSpecialRegulation> aiRegulations,
         int waterBodyId,
         int speciesId,
         Guid sourceDocumentId,
@@ -686,46 +729,108 @@ public class RegulationDatabasePopulationService : IRegulationDatabasePopulation
             SpeciesId = speciesId,
             RegulationYear = regulationYear,
             SourceDocumentId = sourceDocumentId,
-            RegulationType = "general", // Default regulation type
+            RegulationType = "general",
             EffectiveDate = effectiveDate,
             ExpirationDate = expirationDate,
-            
-            // Limits
-            DailyLimit = aiRegulation.DailyLimit,
-            PossessionLimit = aiRegulation.PossessionLimit,
-            
-            // Sizes (extract numeric values where possible)
-            MinimumSizeInches = ExtractSizeInInches(aiRegulation.MinimumSize),
-            MaximumSizeInches = ExtractSizeInInches(aiRegulation.MaximumSize),
-            
-            // Special regulations
-            SpecialRegulations = new List<string> { aiRegulation.Notes }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
-            
-            // Store season info in the general notes field since there's no season_notes column
-            Notes = aiRegulation.SeasonInfo,
-            
-            // Metadata
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now
         };
 
-        // Extract protected slot information
-        ExtractProtectedSlotInfo(aiRegulation.ProtectedSlot, regulation);
+        var specialRegulationsList = new List<string>();
+        var seasonInfoList = new List<string>();
+
+        // Combine all regulations into a single record
+        foreach (var aiRegulation in aiRegulations)
+        {
+            // Take the first non-null daily/possession limit
+            if (aiRegulation.DailyLimit.HasValue && aiRegulation.DailyLimit > 0 && !regulation.DailyLimit.HasValue)
+                regulation.DailyLimit = aiRegulation.DailyLimit;
+            
+            if (aiRegulation.PossessionLimit.HasValue && aiRegulation.PossessionLimit > 0 && !regulation.PossessionLimit.HasValue)
+                regulation.PossessionLimit = aiRegulation.PossessionLimit;
+
+            // Take the first non-null size limits
+            var minSize = ExtractSizeInInches(aiRegulation.MinimumSize);
+            if (minSize.HasValue && !regulation.MinimumSizeInches.HasValue)
+                regulation.MinimumSizeInches = minSize;
+
+            var maxSize = ExtractSizeInInches(aiRegulation.MaximumSize);
+            if (maxSize.HasValue && !regulation.MaximumSizeInches.HasValue)
+                regulation.MaximumSizeInches = maxSize;
+
+            // Extract protected slot info
+            if (!string.IsNullOrWhiteSpace(aiRegulation.ProtectedSlot))
+                ExtractProtectedSlotInfo(aiRegulation.ProtectedSlot, regulation);
+
+            // Collect notes
+            if (!string.IsNullOrWhiteSpace(aiRegulation.Notes))
+                specialRegulationsList.Add(aiRegulation.Notes);
+
+            // Collect season info
+            if (!string.IsNullOrWhiteSpace(aiRegulation.SeasonInfo))
+                seasonInfoList.Add(aiRegulation.SeasonInfo);
+        }
+
+        // Set combined special regulations and notes
+        regulation.SpecialRegulations = specialRegulationsList.Distinct().ToList();
+        regulation.Notes = seasonInfoList.Any() ? string.Join("; ", seasonInfoList.Distinct()) : null;
 
         return regulation;
     }
 
-    private void UpdateFishingRegulationFromAi(FishingRegulation existing, AiSpecialRegulation aiRegulation)
+    /// <summary>
+    /// Updates an existing fishing regulation from multiple AI special regulations for the same species.
+    /// This combines size limits, bag limits, and other regulations into the existing record.
+    /// </summary>
+    private void UpdateFishingRegulationFromMultipleAi(FishingRegulation existing, List<AiSpecialRegulation> aiRegulations)
     {
-        existing.DailyLimit = aiRegulation.DailyLimit;
-        existing.PossessionLimit = aiRegulation.PossessionLimit;
-        existing.MinimumSizeInches = ExtractSizeInInches(aiRegulation.MinimumSize);
-        existing.MaximumSizeInches = ExtractSizeInInches(aiRegulation.MaximumSize);
-        existing.SpecialRegulations = new List<string> { aiRegulation.Notes }.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-        existing.Notes = aiRegulation.SeasonInfo; // Store season info in general notes field
-        
-        ExtractProtectedSlotInfo(aiRegulation.ProtectedSlot, existing);
+        var specialRegulationsList = new List<string>();
+        var seasonInfoList = new List<string>();
+
+        // Reset values that will be recombined
+        existing.DailyLimit = null;
+        existing.PossessionLimit = null;
+        existing.MinimumSizeInches = null;
+        existing.MaximumSizeInches = null;
+        existing.ProtectedSlotMinInches = null;
+        existing.ProtectedSlotMaxInches = null;
+
+        // Combine all regulations into the existing record
+        foreach (var aiRegulation in aiRegulations)
+        {
+            // Take the first non-null daily/possession limit
+            if (aiRegulation.DailyLimit.HasValue && aiRegulation.DailyLimit > 0 && !existing.DailyLimit.HasValue)
+                existing.DailyLimit = aiRegulation.DailyLimit;
+            
+            if (aiRegulation.PossessionLimit.HasValue && aiRegulation.PossessionLimit > 0 && !existing.PossessionLimit.HasValue)
+                existing.PossessionLimit = aiRegulation.PossessionLimit;
+
+            // Take the first non-null size limits
+            var minSize = ExtractSizeInInches(aiRegulation.MinimumSize);
+            if (minSize.HasValue && !existing.MinimumSizeInches.HasValue)
+                existing.MinimumSizeInches = minSize;
+
+            var maxSize = ExtractSizeInInches(aiRegulation.MaximumSize);
+            if (maxSize.HasValue && !existing.MaximumSizeInches.HasValue)
+                existing.MaximumSizeInches = maxSize;
+
+            // Extract protected slot info
+            if (!string.IsNullOrWhiteSpace(aiRegulation.ProtectedSlot))
+                ExtractProtectedSlotInfo(aiRegulation.ProtectedSlot, existing);
+
+            // Collect notes
+            if (!string.IsNullOrWhiteSpace(aiRegulation.Notes))
+                specialRegulationsList.Add(aiRegulation.Notes);
+
+            // Collect season info
+            if (!string.IsNullOrWhiteSpace(aiRegulation.SeasonInfo))
+                seasonInfoList.Add(aiRegulation.SeasonInfo);
+        }
+
+        // Set combined special regulations and notes
+        existing.SpecialRegulations = specialRegulationsList.Distinct().ToList();
+        existing.Notes = seasonInfoList.Any() ? string.Join("; ", seasonInfoList.Distinct()) : null;
     }
 
     private decimal? ExtractSizeInInches(string? sizeString)

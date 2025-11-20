@@ -35,6 +35,12 @@ public static class ServiceCollectionExtensions
         // Register Database Population service
         services.AddScoped<IRegulationDatabasePopulationService, RegulationDatabasePopulationService>();
 
+        // Register Special Regulations Parser service
+        services.AddScoped<ISpecialRegulationsParserService, SpecialRegulationsParserService>();
+
+        // Register Special Regulations Adapter service
+        services.AddScoped<SpecialRegulationsAdapterService>();
+
         return services;
     }
 

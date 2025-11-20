@@ -1,14 +1,17 @@
 @page "/admin"
 @rendermode InteractiveServer
 @using FishingRegs.Services.Interfaces
+@using FishingRegs.Services.Services
 @using FishingRegs.Data
 @using FishingRegs.Data.Models
 @using Microsoft.AspNetCore.Components.Forms
 @using System.Text
-@inject IAiLakeRegulationExtractionService AiExtractionService
+@inject ISpecialRegulationsParserService ParserService
+@inject SpecialRegulationsAdapterService AdapterService
 @inject IRegulationDatabasePopulationService DatabasePopulationService
 @inject IUnitOfWork UnitOfWork
 @inject ILogger<Admin> Logger
+@inject IConfiguration Configuration
 
 <PageTitle>Admin - Fishing Regulations</PageTitle>
 
@@ -18,13 +21,17 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h3>Upload Regulation Document</h3>
+                <h3>Upload Special Regulations File</h3>
             </div>
             <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> <strong>Note:</strong> Uploading a new file will replace ALL existing regulations for the selected year.
+                </div>
+                
                 <div class="mb-3">
                     <label for="documentUpload" class="form-label">Select Text File</label>
                     <InputFile id="documentUpload" class="form-control" OnChange="HandleFileSelected" accept=".txt" />
-                    <div class="form-text">Upload fishing regulation text files for AI processing.</div>
+                    <div class="form-text">Upload special regulations text files for parsing and database population.</div>
                 </div>
                 
                 @if (selectedFile != null)
@@ -40,11 +47,13 @@
                         <input type="number" class="form-control" id="regulationYear" @bind="regulationYear" min="2020" max="2030" />
                     </div>
                     <div class="col-md-6">
-                        <label for="processingMode" class="form-label">Processing Mode</label>
-                        <select class="form-select" id="processingMode" @bind="processingMode">
-                            <option value="batch">Batch (Extract all, then save)</option>
-                            <option value="streaming">Streaming (Real-time processing)</option>
-                        </select>
+                        <label class="form-label">Clear Previous Data</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="clearPrevious" @bind="clearPreviousData">
+                            <label class="form-check-label" for="clearPrevious">
+                                Clear all regulations for @regulationYear before importing
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
@@ -244,6 +253,7 @@
 @code {
     private IBrowserFile? selectedFile;
     private bool isProcessing = false;
+    private bool clearPreviousData = true;
     private string? processError;
     private bool isDuplicateKeyError = false;
     private List<string> processResults = new();
@@ -251,7 +261,6 @@
     private List<string> streamingProgress = new();
     
     private int regulationYear = DateTime.Now.Year;
-    private string processingMode = "batch";
     
     // Statistics
     private int totalLakes = 0;
@@ -265,10 +274,10 @@
     private int waterBodiesUpdated = 0;
     private int regulationsCreated = 0;
     private int regulationsUpdated = 0;
+    private int regulationsDeleted = 0;
     private TimeSpan processingTime = TimeSpan.Zero;
     
     // Configuration status
-    private bool isAzureOpenAIConfigured = false;
     private bool isDatabaseConfigured = false;
     
     private List<ActivityLog> recentActivity = new();
@@ -284,8 +293,28 @@
     {
         try
         {
-            // Check if services are properly configured by attempting to access them
-            isAzureOpenAIConfigured = AiExtractionService != null;
+            // Check Azure OpenAI configuration
+            var endpoint = Configuration["AzureAI:OpenAI:Endpoint"];
+            var apiKey = Configuration["AzureAI:OpenAI:ApiKey"];
+            var deploymentName = Configuration["AzureAI:OpenAI:DeploymentName"];
+            
+            isAzureOpenAIConfigured = !string.IsNullOrWhiteSpace(endpoint) && 
+                                     !string.IsNullOrWhiteSpace(apiKey) && 
+                                     !string.IsNullOrWhiteSpace(deploymentName);
+            
+            if (isAzureOpenAIConfigured)
+            {
+                Logger.LogInformation("Azure OpenAI configuration detected");
+            }
+            else
+            {
+                Logger.LogWarning("Azure OpenAI configuration is incomplete. Endpoint: {HasEndpoint}, ApiKey: {HasApiKey}, DeploymentName: {HasDeployment}",
+                    !string.IsNullOrWhiteSpace(endpoint),
+                    !string.IsNullOrWhiteSpace(apiKey),
+                    !string.IsNullOrWhiteSpace(deploymentName));
+            }
+            
+            // Check if services are properly configured
             isDatabaseConfigured = UnitOfWork != null;
             
             // Try a simple database query to verify connection
@@ -293,7 +322,7 @@
             {
                 try
                 {
-                    await UnitOfWork.WaterBodies.CountAsync();
+                    await UnitOfWork!.WaterBodies.CountAsync();
                 }
                 catch (Exception ex)
                 {
@@ -305,8 +334,8 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Configuration check failed");
-            isAzureOpenAIConfigured = false;
             isDatabaseConfigured = false;
+            isAzureOpenAIConfigured = false;
         }
     }
 
@@ -325,6 +354,7 @@
         waterBodiesUpdated = 0;
         regulationsCreated = 0;
         regulationsUpdated = 0;
+        regulationsDeleted = 0;
         processingTime = TimeSpan.Zero;
         
         StateHasChanged();
@@ -357,13 +387,62 @@
                 return;
             }
 
-            // Create source document record
+            var startTime = DateTime.UtcNow;
+
+            // Step 1: Clear previous data if requested
+            if (clearPreviousData)
+            {
+                streamingProgress.Add("??? Clearing previous regulations...");
+                StateHasChanged();
+
+                var clearResult = await ParserService.ClearPreviousRegulationsAsync(regulationYear);
+                
+                if (clearResult.IsSuccess)
+                {
+                    regulationsDeleted = clearResult.RegulationsDeleted;
+                    processResults.Add($"Cleared {regulationsDeleted} previous regulations for {regulationYear}");
+                    streamingProgress.Add($"? Cleared {regulationsDeleted} regulations");
+                }
+                else
+                {
+                    processError = $"Failed to clear previous data: {clearResult.ErrorMessage}";
+                    return;
+                }
+                StateHasChanged();
+            }
+
+            // Step 2: Parse the special regulations file
+            streamingProgress.Add("?? Parsing special regulations file...");
+            StateHasChanged();
+
+            var parseResult = await ParserService.ParseSpecialRegulationsAsync(textContent);
+
+            if (!parseResult.IsSuccess)
+            {
+                processError = $"Parsing failed: {parseResult.ErrorMessage}";
+                return;
+            }
+
+            lakesProcessed = parseResult.TotalLakesParsed;
+            processResults.Add($"Parsed {lakesProcessed} lakes from special regulations file");
+            streamingProgress.Add($"? Parsed {lakesProcessed} lakes");
+            StateHasChanged();
+
+            // Step 3: Convert to AI extraction format for database population
+            streamingProgress.Add("?? Converting to database format...");
+            StateHasChanged();
+
+            var extractionResult = AdapterService.ConvertToAiExtractionResult(parseResult);
+            streamingProgress.Add("? Conversion complete");
+            StateHasChanged();
+
+            // Step 4: Create source document record
             var sourceDocument = new RegulationDocument
             {
                 Id = Guid.NewGuid(),
                 FileName = $"{DateTime.Now:yyyyMMdd_HHmmss}_{selectedFile.Name}",
                 OriginalFileName = selectedFile.Name,
-                DocumentType = "fishing_regulations",
+                DocumentType = "special_regulations",
                 ProcessingStatus = "processing",
                 FileSizeBytes = selectedFile.Size,
                 MimeType = selectedFile.ContentType ?? "text/plain",
@@ -377,20 +456,36 @@
                 UpdatedAt = DateTimeOffset.UtcNow
             };
 
-            // Add document to database
             await UnitOfWork.RegulationDocuments.AddAsync(sourceDocument);
             await UnitOfWork.SaveChangesAsync();
 
-            var startTime = DateTime.UtcNow;
+            // Step 5: Populate database
+            streamingProgress.Add("?? Populating database...");
+            StateHasChanged();
 
-            if (processingMode == "streaming")
+            var populationResult = await DatabasePopulationService.PopulateDatabaseAsync(
+                extractionResult, 
+                sourceDocument.Id, 
+                regulationYear);
+
+            if (!populationResult.IsSuccess)
             {
-                await ProcessDocumentStreaming(textContent, sourceDocument);
+                processError = $"Database population failed: {populationResult.ErrorMessage}";
+                processingWarnings.AddRange(populationResult.ProcessingErrors);
+                return;
             }
-            else
-            {
-                await ProcessDocumentBatch(textContent, sourceDocument);
-            }
+
+            waterBodiesCreated = populationResult.WaterBodiesCreated;
+            waterBodiesUpdated = populationResult.WaterBodiesUpdated;
+            regulationsCreated = populationResult.RegulationsCreated;
+            regulationsUpdated = populationResult.RegulationsUpdated;
+
+            processResults.Add($"Database population completed successfully");
+            processResults.Add($"Water bodies created: {waterBodiesCreated}, updated: {waterBodiesUpdated}");
+            processResults.Add($"Regulations created: {regulationsCreated}, updated: {regulationsUpdated}");
+            processingWarnings.AddRange(populationResult.ProcessingWarnings);
+            
+            streamingProgress.Add("? Database population completed");
 
             processingTime = DateTime.UtcNow - startTime;
 
@@ -414,7 +509,7 @@
             processError = ex.Message;
             
             // Check if this is a duplicate key error
-            isDuplicateKeyError = IsDataBaseConstraintError(ex);
+            isDuplicateKeyError = IsDatabaseConstraintError(ex);
             
             if (isDuplicateKeyError)
             {
@@ -428,125 +523,14 @@
         }
     }
 
-    private bool IsDataBaseConstraintError(Exception ex)
+    private bool IsDatabaseConstraintError(Exception ex)
     {
         return ex.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) ||
                ex.Message.Contains("23505") ||
                ex.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) ||
                ex.Message.Contains("value too long for type", StringComparison.OrdinalIgnoreCase) ||
                ex.Message.Contains("22001") ||
-               (ex.InnerException != null && IsDataBaseConstraintError(ex.InnerException));
-    }
-
-    private async Task ProcessDocumentBatch(string textContent, RegulationDocument sourceDocument)
-    {
-        streamingProgress.Add("?? Starting AI extraction...");
-        StateHasChanged();
-
-        // Step 1: AI Extraction
-        var extractionResult = await AiExtractionService.ExtractLakeRegulationsAsync(textContent);
-
-        if (!extractionResult.IsSuccess)
-        {
-            processError = $"AI extraction failed: {extractionResult.ErrorMessage}";
-            return;
-        }
-
-        lakesProcessed = extractionResult.TotalLakesProcessed;
-        processResults.Add($"AI extraction completed: {extractionResult.ExtractedRegulations.Count} lakes extracted");
-        processResults.Add($"Total regulations found: {extractionResult.TotalRegulationsExtracted}");
-        processingWarnings.AddRange(extractionResult.ProcessingWarnings);
-        
-        streamingProgress.Add($"? AI extraction completed: {extractionResult.ExtractedRegulations.Count} lakes");
-        StateHasChanged();
-
-        // Step 2: Database Population
-        streamingProgress.Add("?? Populating database...");
-        StateHasChanged();
-
-        var populationResult = await DatabasePopulationService.PopulateDatabaseAsync(
-            extractionResult, 
-            sourceDocument.Id, 
-            regulationYear);
-
-        if (!populationResult.IsSuccess)
-        {
-            processError = $"Database population failed: {populationResult.ErrorMessage}";
-            processingWarnings.AddRange(populationResult.ProcessingErrors);
-            return;
-        }
-
-        waterBodiesCreated = populationResult.WaterBodiesCreated;
-        waterBodiesUpdated = populationResult.WaterBodiesUpdated;
-        regulationsCreated = populationResult.RegulationsCreated;
-        regulationsUpdated = populationResult.RegulationsUpdated;
-
-        processResults.Add($"Database population completed successfully");
-        processResults.Add($"Water bodies created: {waterBodiesCreated}, updated: {waterBodiesUpdated}");
-        processResults.Add($"Regulations created: {regulationsCreated}, updated: {regulationsUpdated}");
-        processingWarnings.AddRange(populationResult.ProcessingWarnings);
-        
-        streamingProgress.Add("? Database population completed");
-    }
-
-    private async Task ProcessDocumentStreaming(string textContent, RegulationDocument sourceDocument)
-    {
-        streamingProgress.Add("?? Starting streaming processing...");
-        StateHasChanged();
-
-        var streamingResult = await AiExtractionService.ExtractLakeRegulationsStreamAsync(
-            textContent,
-            async (lakeRegulation) =>
-            {
-                // Real-time processing callback
-                streamingProgress.Add($"? Processing {lakeRegulation.LakeName}...");
-                StateHasChanged();
-
-                var lakeResult = await DatabasePopulationService.PopulateSingleLakeAsync(
-                    lakeRegulation, 
-                    sourceDocument.Id, 
-                    regulationYear);
-
-                if (lakeResult.IsSuccess)
-                {
-                    if (lakeResult.WaterBody != null)
-                    {
-                        // Note: WaterBody.Id will now be > 0 after the fix since it gets saved in PopulateSingleLakeAsync
-                        // Check if this is a newly created water body based on the service's internal tracking
-                        // For simplicity, we'll track based on the lakeResult statistics
-                        waterBodiesCreated++; // This will be corrected by using the proper result statistics
-                    }
-
-                    regulationsCreated += lakeResult.CreatedRegulations.Count;
-                    regulationsUpdated += lakeResult.UpdatedRegulations.Count;
-
-                    streamingProgress.Add($"? {lakeRegulation.LakeName}: {lakeResult.CreatedRegulations.Count} regs created, {lakeResult.UpdatedRegulations.Count} updated");
-                    
-                    // Note: SaveChanges is now handled inside PopulateSingleLakeAsync for water bodies
-                    // We still need to save the fishing regulations
-                    await UnitOfWork.SaveChangesAsync();
-                }
-                else
-                {
-                    streamingProgress.Add($"? {lakeRegulation.LakeName}: {lakeResult.ErrorMessage}");
-                    processingWarnings.Add($"{lakeRegulation.LakeName}: {lakeResult.ErrorMessage}");
-                }
-
-                processingWarnings.AddRange(lakeResult.Warnings);
-                lakesProcessed++;
-                StateHasChanged();
-            });
-
-        if (!streamingResult.IsSuccess)
-        {
-            processError = $"Streaming processing failed: {streamingResult.ErrorMessage}";
-            return;
-        }
-
-        processResults.Add($"Streaming processing completed");
-        processResults.Add($"Total lakes processed: {lakesProcessed}");
-        processResults.Add($"Processing completed in real-time mode");
-        processingWarnings.AddRange(streamingResult.ProcessingWarnings);
+               (ex.InnerException != null && IsDatabaseConstraintError(ex.InnerException));
     }
 
     private async Task RefreshStats()
@@ -571,8 +555,7 @@
         try
         {
             // Load recent documents
-            var recentDocs = await UnitOfWork.RegulationDocuments
-                .GetAllAsync();
+            var recentDocs = await UnitOfWork.RegulationDocuments.GetAllAsync();
             
             recentActivity.Clear();
             
@@ -615,6 +598,10 @@
             recentActivity = recentActivity.Take(20).ToList();
         }
     }
+
+    // Note: These fields are referenced in the UI but not used with the new parser
+    private string processingMode = "batch";
+    private bool isAzureOpenAIConfigured = false;
 
     public class ActivityLog
     {

@@ -326,7 +326,7 @@ public class SpecialRegulationsParser
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Silent fail - return what we have so far
         }

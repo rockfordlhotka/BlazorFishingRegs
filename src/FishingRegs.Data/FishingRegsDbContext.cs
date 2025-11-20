@@ -265,6 +265,12 @@ public class FishingRegsDbContext : DbContext
             .HasFilter("is_active = true")
             .HasDatabaseName("idx_fishing_regulations_active");
 
+        // Unique constraint on water body, species, and regulation year
+        modelBuilder.Entity<FishingRegulation>()
+            .HasIndex(fr => new { fr.WaterBodyId, fr.SpeciesId, fr.RegulationYear })
+            .IsUnique()
+            .HasDatabaseName("fishing_regulations_water_body_id_species_id_regulation_yea_key");
+
         // Users indexes
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Email)
